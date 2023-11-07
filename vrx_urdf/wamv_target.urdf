@@ -1,0 +1,195 @@
+<?xml version="1.0"?>
+   <robot name="drone">
+
+  <link name="base_link">
+    <visual>
+		 <origin xyz="0 0 0" rpy="0 0 0" />
+         <geometry>
+           <box size="0.4 0.2 0.04"/>
+         </geometry>
+    </visual>
+    <collision>
+		  <origin xyz="0 0 0" rpy="0 0 0" />
+          <geometry>
+            <box size="0.4 0.04 0.04"/>
+          </geometry>
+    </collision>
+    <inertial>
+      <mass value="0.3"/>
+      <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+    </inertial>
+  </link>
+
+     <link name="FL">
+       <visual>
+		 <origin xyz="0.16 0.13 0" rpy="0 0 0" />
+         <geometry>
+            <cylinder length="0.03" radius="0.13"/>
+         </geometry>
+       </visual>
+       <collision>
+          <origin xyz="0.16 0.13 0" rpy="0 0 0" />
+          <geometry>
+            <cylinder length="0.03" radius="0.13"/>
+          </geometry>
+        </collision>
+        <inertial>
+           <mass value="0.2"/>
+           <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+         </inertial>
+     </link>
+     <link name="FR">
+       <visual>
+		 <origin xyz="0.16 -0.13 0" rpy="0 0 0" />
+         <geometry>
+            <cylinder length="0.03" radius="0.13"/>
+         </geometry>
+       </visual>
+       <collision>
+          <origin xyz="0.16 -0.13 0" rpy="0 0 0" />
+          <geometry>
+            <cylinder length="0.03" radius="0.13"/>
+          </geometry>
+        </collision>
+        <inertial>
+           <mass value="0.2"/>
+           <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+         </inertial>
+     </link>
+     <link name="BL">
+       <visual>
+		 <origin xyz="-0.09 0.13 0" rpy="0 0 0" />
+         <geometry>
+            <cylinder length="0.03" radius="0.13"/>
+         </geometry>
+       </visual>
+       <collision>
+          <origin xyz="-0.09 0.13 0" rpy="0 0 0" />
+          <geometry>
+            <cylinder length="0.03" radius="0.13"/>
+          </geometry>
+        </collision>
+        <inertial>
+           <mass value="0.2"/>
+           <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+         </inertial>
+     </link>
+     <link name="BR">
+       <visual>
+		 <origin xyz="-0.09 -0.13 0" rpy="0 0 0" />
+         <geometry>
+            <cylinder length="0.03" radius="0.13"/>
+         </geometry>
+       </visual>
+       <collision>
+          <origin xyz="-0.09 -0.13 0" rpy="0 0 0" />
+          <geometry>
+            <cylinder length="0.03" radius="0.13"/>
+          </geometry>
+        </collision>
+        <inertial>
+           <mass value="0.2"/>
+           <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+         </inertial>
+     </link>
+	 
+     <joint name="base_to_FL" type="fixed">
+       <parent link="base_link"/>
+       <child link="FL"/>
+     </joint>
+     <joint name="base_to_FR" type="fixed">
+       <parent link="base_link"/>
+       <child link="FR"/>
+     </joint>
+     <joint name="base_to_BL" type="fixed">
+       <parent link="base_link"/>
+       <child link="BL"/>
+     </joint>
+     <joint name="base_to_BR" type="fixed">
+       <parent link="base_link"/>
+       <child link="BR"/>
+     </joint>
+     
+
+     <gazebo reference="base_link">
+       <material>Gazebo/Blue</material>
+       <turnGravityOff>true</turnGravityOff>
+     </gazebo>
+
+     <gazebo>
+    <!-- Left hull -->
+    <plugin filename="libSurface.so" name="vrx::Surface">
+      <link_name>base_link</link_name>
+      <hull_length>4.9</hull_length>
+      <hull_radius>0.213</hull_radius>
+      <fluid_level>0</fluid_level>
+      <points>
+        <point>0.6 1.03 0</point>
+        <point>-1.4 1.03 0</point>
+      </points>
+      <wavefield>
+        <topic>/vrx/wavefield/parameters</topic>
+      </wavefield>
+    </plugin>
+    <!-- Right hull -->
+    <plugin filename="libSurface.so" name="vrx::Surface">
+      <link_name>base_link</link_name>
+      <hull_length>4.9</hull_length>
+      <hull_radius>0.213</hull_radius>
+      <fluid_level>0</fluid_level>
+      <points>
+        <point>0.6 -1.03 0</point>
+        <point>-1.4 -1.03 0</point>
+      </points>
+      <wavefield>
+        <topic>/vrx/wavefield/parameters</topic>
+      </wavefield>
+    </plugin>
+    <plugin filename="libSimpleHydrodynamics.so" name="vrx::SimpleHydrodynamics">
+      <link_name>base_link</link_name>
+      <!-- Added mass -->
+      <xDotU>0.0</xDotU>
+      <yDotV>0.0</yDotV>
+      <nDotR>0.0</nDotR>
+      <!-- Linear and quadratic drag -->
+      <xU>100.0</xU>
+      <xUU>150.0</xUU>
+      <yV>100.0</yV>
+      <yVV>100.0</yVV>
+      <zW>500.0</zW>
+      <kP>300.0</kP>
+      <kPP>600.0</kPP>
+      <mQ>900.0</mQ>
+      <mQQ>900.0</mQQ>
+      <nR>800.0</nR>
+      <nRR>800.0</nRR>
+    </plugin>
+  </gazebo>
+  <!-- === [Un]lock the robot to the world === -->
+  <gazebo>
+    <plugin filename="gz-sim-detachable-joint-system" name="gz::sim::systems::DetachableJoint">
+      <parent_link>base_link</parent_link>
+      <child_model>platform</child_model>
+      <child_link>dummy_upper</child_link>
+      <topic>/vrx/release</topic>
+      <suppress_child_warning>true</suppress_child_warning>
+    </plugin>
+  </gazebo>
+  <!-- === TF === -->
+  <!-- Publish robot state information -->
+  <gazebo>
+    <plugin filename="libgz-sim-pose-publisher-system.so" name="gz::sim::systems::PosePublisher">
+      <publish_link_pose>false</publish_link_pose>
+      <publish_sensor_pose>true</publish_sensor_pose>
+      <publish_collision_pose>false</publish_collision_pose>
+      <publish_visual_pose>false</publish_visual_pose>
+      <publish_nested_model_pose>false</publish_nested_model_pose>
+      <publish_model_pose>false</publish_model_pose>
+      <use_pose_vector_msg>true</use_pose_vector_msg>
+      <static_publisher>false</static_publisher>
+      <static_update_frequency>1</static_update_frequency>
+    </plugin>
+    <plugin filename="gz-sim-joint-state-publisher-system" name="gz::sim::systems::JointStatePublisher">
+    </plugin>
+  </gazebo>
+   </robot>
