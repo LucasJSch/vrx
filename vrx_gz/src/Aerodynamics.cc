@@ -184,6 +184,108 @@ void Aerodynamics::Configure(const Entity &_entity,
   gzdbg << "  <nRR>: "       << this->dataPtr->paramNrr   << std::endl;
 }
 
+static Wrench getDragWrench(const PhysicsBody& body, const Quaternionr& orientation,
+                                    const Vector3r& linear_vel, const Vector3r& angular_vel_body, const Vector3r& wind_world)
+  {
+      //add linear drag due to velocity we had since last dt seconds + wind
+      //drag vector magnitude is proportional to v^2, direction opposite of velocity
+      //total drag is b*v + c*v*v but we ignore the first term as b << c (pg 44, Classical Mechanics, John Taylor)
+      //To find the drag force, we find the magnitude in the body frame and unit vector direction in world frame
+      //http://physics.stackexchange.com/questions/304742/angular-drag-on-body
+      //similarly calculate angular drag
+      //note that angular velocity, acceleration, torque are already in body frame
+
+      Wrench wrench = Wrench::zero();
+      const real_T air_density = body.getEnvironment().getState().air_density;
+
+      // Use relative velocity of the body wrt wind
+      const Vector3r relative_vel = linear_vel - wind_world;
+      const Vector3r linear_vel_body = VectorMath::transformToBodyFrame(relative_vel, orientation);
+
+      for (uint vi = 0; vi < body.dragVertexCount(); ++vi) {
+          const auto& vertex = body.getDragVertex(vi);
+          const Vector3r vel_vertex = linear_vel_body + angular_vel_body.cross(vertex.getPosition());
+          const real_T vel_comp = vertex.getNormal().dot(vel_vertex);
+          //if vel_comp is -ve then we cull the face. If velocity too low then drag is not generated
+          if (vel_comp > kDragMinVelocity) {
+              const Vector3r drag_force = vertex.getNormal() * (-vertex.getDragFactor() * air_density * vel_comp * vel_comp);
+              const Vector3r drag_torque = vertex.getPosition().cross(drag_force);
+
+              wrench.force += drag_force;
+              wrench.torque += drag_torque;
+          }
+      }
+
+      //convert force to world frame, leave torque to local frame
+      wrench.force = VectorMath::transformToWorldFrame(wrench.force, orientation);
+
+      return wrench;
+  }
+
+static Wrench getBodyWrench(const PhysicsBody& body, const Quaternionr& orientation)
+  {
+      //set wrench sum to zero
+      Wrench wrench = Wrench::zero();
+
+      //calculate total force on rigid body's center of gravity
+      for (uint i = 0; i < body.wrenchVertexCount(); ++i) {
+          //aggregate total
+          const PhysicsBodyVertex& vertex = body.getWrenchVertex(i);
+          const auto& vertex_wrench = vertex.getWrench();
+          wrench += vertex_wrench;
+
+          //add additional torque due to force applies farther than COG
+          // tau = r X F
+          wrench.torque += vertex.getPosition().cross(vertex_wrench.force);
+      }
+
+      //convert force to world frame, leave torque to local frame
+      wrench.force = VectorMath::transformToWorldFrame(wrench.force, orientation);
+
+      return wrench;
+  }
+
+static void computeNextPose(TTimeDelta dt, const Pose& current_pose, const Vector3r& avg_linear, const Vector3r& avg_angular, Kinematics::State& next)
+        {
+            real_T dt_real = static_cast<real_T>(dt);
+
+            next.pose.position = current_pose.position + avg_linear * dt_real;
+
+            //use angular velocty in body frame to calculate angular displacement in last dt seconds
+            real_T angle_per_unit = avg_angular.norm();
+            if (Utils::isDefinitelyGreaterThan(angle_per_unit, 0.0f)) {
+                //convert change in angle to unit quaternion
+                AngleAxisr angle_dt_aa = AngleAxisr(angle_per_unit * dt_real, avg_angular / angle_per_unit);
+                Quaternionr angle_dt_q = Quaternionr(angle_dt_aa);
+                /*
+            Add change in angle to previous orientation.
+            Proof that this is q0 * q1:
+            If rotated vector is qx*v*qx' then qx is attitude
+            Initially we have q0*v*q0'
+            Lets transform this to body coordinates to get
+            q0'*(q0*v*q0')*q0
+            Then apply q1 rotation on it to get
+            q1(q0'*(q0*v*q0')*q0)q1'
+            Then transform back to world coordinate
+            q0(q1(q0'*(q0*v*q0')*q0)q1')q0'
+            which simplifies to
+            q0(q1(v)q1')q0'
+            Thus new attitude is q0q1
+            */
+                next.pose.orientation = current_pose.orientation * angle_dt_q;
+                if (VectorMath::hasNan(next.pose.orientation)) {
+                    //Utils::DebugBreak();
+                    Utils::log("orientation had NaN!", Utils::kLogLevelError);
+                }
+
+                //re-normalize quaternion to avoid accumulating error
+                next.pose.orientation.normalize();
+            }
+            else //no change in angle, because angular velocity is zero (normalized vector is undefined)
+                next.pose.orientation = current_pose.orientation;
+        }
+
+
 //////////////////////////////////////////////////
 void Aerodynamics::PreUpdate(
     const sim::UpdateInfo &_info,
@@ -290,44 +392,7 @@ void Aerodynamics::PreUpdate(
       next.twist.angular /= (next.twist.angular.norm() / EarthUtils::SpeedOfLight);
       next.accelerations.angular = Vector3r::Zero();
   }
-  real_T dt_real = static_cast<real_T>(dt);
-
-  next.pose.position = current_pose.position + avg_linear * dt_real;
-  
-  //use angular velocty in body frame to calculate angular displacement in last dt seconds
-  real_T angle_per_unit = avg_angular.norm();
-  if (Utils::isDefinitelyGreaterThan(angle_per_unit, 0.0f)) {
-    //convert change in angle to unit quaternion
-    AngleAxisr angle_dt_aa = AngleAxisr(angle_per_unit * dt_real, avg_angular / angle_per_unit);
-    Quaternionr angle_dt_q = Quaternionr(angle_dt_aa);
-    /*
-  Add change in angle to previous orientation.
-  Proof that this is q0 * q1:
-  If rotated vector is qx*v*qx' then qx is attitude
-  Initially we have q0*v*q0'
-  Lets transform this to body coordinates to get
-  q0'*(q0*v*q0')*q0
-  Then apply q1 rotation on it to get
-  q1(q0'*(q0*v*q0')*q0)q1'
-  Then transform back to world coordinate
-  q0(q1(q0'*(q0*v*q0')*q0)q1')q0'
-  which simplifies to
-  q0(q1(v)q1')q0'
-  Thus new attitude is q0q1
-  */
-      next.pose.orientation = current_pose.orientation * angle_dt_q;
-      if (VectorMath::hasNan(next.pose.orientation)) {
-          //Utils::DebugBreak();
-          Utils::log("orientation had NaN!", Utils::kLogLevelError);
-      }
-  
-      //re-normalize quaternion to avoid accumulating error
-      next.pose.orientation.normalize();
-  }
-  else{
-    //no change in angle, because angular velocity is zero (normalized vector is undefined)
-    next.pose.orientation = current_pose.orientation;
-  }
+  computeNextPose(dt, current.pose, avg_linear, avg_angular, next);
   /*SCHEINK*/
 
 
