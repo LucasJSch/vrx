@@ -96,6 +96,13 @@ class vrx::AerodynamicsPrivate
   /// \brief Added mass of vehicle.
   /// See: https://en.wikipedia.org/wiki/Added_mass
   public: Eigen::MatrixXd Ma;
+
+  /// \brief Object vertices.
+  public: std::vector<gz::math::Vector3d> vertices;
+
+  public: int numVertices;
+
+  public: int airDensity;
 };
 
 
@@ -112,6 +119,13 @@ void Aerodynamics::Configure(const Entity &_entity,
     EventManager &/*_eventMgr*/)
 {
   this->dataPtr->model = Model(_entity);
+
+  // Parse optional <air_density>.
+  if (_sdf->HasElement("air_density"))
+    this->dataPtr->airDensity = _sdf->Get<double>("air_density");
+
+  if (_sdf->HasElement("drone_num_vertices"))
+    this->dataPtr->numVertices = _sdf->Get<double>("drone_num_vertices");
 
   // Parse required elements.
   if (!_sdf->HasElement("link_name"))
@@ -184,80 +198,83 @@ void Aerodynamics::Configure(const Entity &_entity,
   gzdbg << "  <nRR>: "       << this->dataPtr->paramNrr   << std::endl;
 }
 
-static Wrench getDragWrench(const PhysicsBody& body, const Quaternionr& orientation,
-                                    const Vector3r& linear_vel, const Vector3r& angular_vel_body, const Vector3r& wind_world)
+Wrench Aerodynamics::getDragWrench(const math::Quaterniond& orientation,
+                     const gz::math::Vector3d& linear_vel,
+                     const gz::math::Vector3d& angular_vel_body,
+                     const gz::math::Vector3d& wind_world) const
   {
-      //add linear drag due to velocity we had since last dt seconds + wind
-      //drag vector magnitude is proportional to v^2, direction opposite of velocity
-      //total drag is b*v + c*v*v but we ignore the first term as b << c (pg 44, Classical Mechanics, John Taylor)
-      //To find the drag force, we find the magnitude in the body frame and unit vector direction in world frame
-      //http://physics.stackexchange.com/questions/304742/angular-drag-on-body
-      //similarly calculate angular drag
-      //note that angular velocity, acceleration, torque are already in body frame
+  //add linear drag due to velocity we had since last dt seconds + wind
+  //drag vector magnitude is proportional to v^2, direction opposite of velocity
+  //total drag is b*v + c*v*v but we ignore the first term as b << c (pg 44, Classical Mechanics, John Taylor)
+  //To find the drag force, we find the magnitude in the body frame and unit vector direction in world frame
+  //http://physics.stackexchange.com/questions/304742/angular-drag-on-body
+  //similarly calculate angular drag
+  //note that angular velocity, acceleration, torque are already in body frame
 
-      Wrench wrench = Wrench::zero();
-      const real_T air_density = body.getEnvironment().getState().air_density;
+  Wrench wrench;
+  const float air_density = this->dataPtr->airDensity;
 
-      // Use relative velocity of the body wrt wind
-      const Vector3r relative_vel = linear_vel - wind_world;
-      const Vector3r linear_vel_body = VectorMath::transformToBodyFrame(relative_vel, orientation);
+  // Use relative velocity of the body wrt wind
+  const gz::math::Vector3d relative_vel = linear_vel - wind_world;
+  //const gz::math::Vector3d linear_vel_body = VectorMath::transformToBodyFrame(relative_vel, orientation);
 
-      for (uint vi = 0; vi < body.dragVertexCount(); ++vi) {
-          const auto& vertex = body.getDragVertex(vi);
-          const Vector3r vel_vertex = linear_vel_body + angular_vel_body.cross(vertex.getPosition());
-          const real_T vel_comp = vertex.getNormal().dot(vel_vertex);
-          //if vel_comp is -ve then we cull the face. If velocity too low then drag is not generated
-          if (vel_comp > kDragMinVelocity) {
-              const Vector3r drag_force = vertex.getNormal() * (-vertex.getDragFactor() * air_density * vel_comp * vel_comp);
-              const Vector3r drag_torque = vertex.getPosition().cross(drag_force);
+  // TODO(scheink): Compute this
+  /*for (uint vi = 0; vi < vertices.size(); ++vi) {
+      const auto& vertex = this->dataPtr->vertices(vi);
+      const gz::math::Vector3d vel_vertex = linear_vel_body + angular_vel_body.cross(vertex.getPosition());
+      const float vel_comp = vertex.getNormal().dot(vel_vertex);
+      //if vel_comp is -ve then we cull the face. If velocity too low then drag is not generated
+      if (vel_comp > kDragMinVelocity) {
+          const gz::math::Vector3d drag_force = vertex.getNormal() * (-vertex.getDragFactor() * air_density * vel_comp * vel_comp);
+          const gz::math::Vector3d drag_torque = vertex.getPosition().cross(drag_force);
 
-              wrench.force += drag_force;
-              wrench.torque += drag_torque;
-          }
+          wrench.force += drag_force;
+          wrench.torque += drag_torque;
       }
+  }*/
 
-      //convert force to world frame, leave torque to local frame
-      wrench.force = VectorMath::transformToWorldFrame(wrench.force, orientation);
+  //convert force to world frame, leave torque to local frame
+  //wrench.force = VectorMath::transformToWorldFrame(wrench.force, orientation);
 
-      return wrench;
-  }
+  return wrench;
+}
 
-static Wrench getBodyWrench(const PhysicsBody& body, const Quaternionr& orientation)
-  {
-      //set wrench sum to zero
-      Wrench wrench = Wrench::zero();
+Wrench Aerodynamics::getBodyWrench(const gz::math::Quaterniond& orientation) const
+{
+  //set wrench sum to zero
+  Wrench wrench;
 
-      //calculate total force on rigid body's center of gravity
-      for (uint i = 0; i < body.wrenchVertexCount(); ++i) {
-          //aggregate total
-          const PhysicsBodyVertex& vertex = body.getWrenchVertex(i);
-          const auto& vertex_wrench = vertex.getWrench();
-          wrench += vertex_wrench;
+  // TODO(scheink): Compute this.
+  //calculate total force on rigid body's center of gravity
+  /*for (uint i = 0; i < body.wrenchVertexCount(); ++i) {
+      //aggregate total
+      const PhysicsBodyVertex& vertex = body.getWrenchVertex(i);
+      const auto& vertex_wrench = vertex.getWrench();
+      wrench += vertex_wrench;
 
-          //add additional torque due to force applies farther than COG
-          // tau = r X F
-          wrench.torque += vertex.getPosition().cross(vertex_wrench.force);
-      }
+      //add additional torque due to force applies farther than COG
+      // tau = r X F
+      wrench.torque += vertex.getPosition().cross(vertex_wrench.force);
+  }*/
 
-      //convert force to world frame, leave torque to local frame
-      wrench.force = VectorMath::transformToWorldFrame(wrench.force, orientation);
+  //convert force to world frame, leave torque to local frame
+  //wrench.force = VectorMath::transformToWorldFrame(wrench.force, orientation);
 
-      return wrench;
-  }
+  return wrench;
+}
 
-static void computeNextPose(TTimeDelta dt, const Pose& current_pose, const Vector3r& avg_linear, const Vector3r& avg_angular, Kinematics::State& next)
+/*void Aerodynamics::computeNextPose(TTimeDelta dt, const Pose& current_pose, const gz::math::Vector3d& avg_linear, const gz::math::Vector3d& avg_angular, Kinematics::State& next) const
         {
-            real_T dt_real = static_cast<real_T>(dt);
+            float dt_real = static_cast<float>(dt);
 
             next.pose.position = current_pose.position + avg_linear * dt_real;
 
             //use angular velocty in body frame to calculate angular displacement in last dt seconds
-            real_T angle_per_unit = avg_angular.norm();
+            float angle_per_unit = avg_angular.norm();
             if (Utils::isDefinitelyGreaterThan(angle_per_unit, 0.0f)) {
                 //convert change in angle to unit quaternion
                 AngleAxisr angle_dt_aa = AngleAxisr(angle_per_unit * dt_real, avg_angular / angle_per_unit);
                 Quaternionr angle_dt_q = Quaternionr(angle_dt_aa);
-                /*
             Add change in angle to previous orientation.
             Proof that this is q0 * q1:
             If rotated vector is qx*v*qx' then qx is attitude
@@ -271,7 +288,6 @@ static void computeNextPose(TTimeDelta dt, const Pose& current_pose, const Vecto
             which simplifies to
             q0(q1(v)q1')q0'
             Thus new attitude is q0q1
-            */
                 next.pose.orientation = current_pose.orientation * angle_dt_q;
                 if (VectorMath::hasNan(next.pose.orientation)) {
                     //Utils::DebugBreak();
@@ -283,7 +299,7 @@ static void computeNextPose(TTimeDelta dt, const Pose& current_pose, const Vecto
             }
             else //no change in angle, because angular velocity is zero (normalized vector is undefined)
                 next.pose.orientation = current_pose.orientation;
-        }
+        }*/
 
 
 //////////////////////////////////////////////////
@@ -357,10 +373,16 @@ void Aerodynamics::PreUpdate(
   //total drag is b*v + c*v*v but we ignore the first term as b << c (pg 44, Classical Mechanics, John Taylor)
   //To find the drag force, we find the magnitude in the body frame and unit vector direction in world frame
   auto dt_real = _info.dt;
-  avg_linear = *worldLinearVel + (*worldLinearAccel) * (0.5f * dt_real);
-  avg_angular = *worldAngularVel + (*worldAngularAccel) * (0.5f * dt_real);
-  Vector3r& wind = Vector3r(); // TODO: Set this
-  const Wrench drag_wrench = getDragWrench(body, comPose.orientation, avg_linear, avg_angular, wind);
+  gz::math::Vector3d avg_linear;
+  avg_linear.X() = worldLinearVel->X() + worldLinearAccel->X() * (0.5f * std::chrono::duration<double>(dt_real).count());
+  avg_linear.Y() = worldLinearVel->Y() + worldLinearAccel->Y() * (0.5f * std::chrono::duration<double>(dt_real).count());
+  avg_linear.Z() = worldLinearVel->Z() + worldLinearAccel->Z() * (0.5f * std::chrono::duration<double>(dt_real).count());
+  gz::math::Vector3d avg_angular;
+  avg_angular.X() = worldAngularVel->X() + worldAngularAccel->X() * (0.5f * std::chrono::duration<double>(dt_real).count());
+  avg_angular.Y() = worldAngularVel->Y() + worldAngularAccel->Y() * (0.5f * std::chrono::duration<double>(dt_real).count());
+  avg_angular.Z() = worldAngularVel->Z() + worldAngularAccel->Z() * (0.5f * std::chrono::duration<double>(dt_real).count());
+  gz::math::Vector3d wind; // TODO(scheink): Set this
+  /*const Wrench drag_wrench = getDragWrench(body, comPose.orientation, avg_linear, avg_angular, wind);
   const Wrench body_wrench = getBodyWrench(body, comPose.orientation);
   Wrench next_wrench = body_wrench + drag_wrench;
   Kinematics::State next;
@@ -369,12 +391,12 @@ void Aerodynamics::PreUpdate(
   //Euler's rotation equation: https://en.wikipedia.org/wiki/Euler's_equations_(body_dynamics)
   //we will use torque to find out the angular acceleration
   //angular momentum L = I * omega
-  const Vector3r angular_momentum = body.getInertia() * avg_angular;
-  const Vector3r angular_momentum_rate = next_wrench.torque - avg_angular.cross(angular_momentum);
+  const gz::math::Vector3d angular_momentum = body.getInertia() * avg_angular;
+  const gz::math::Vector3d angular_momentum_rate = next_wrench.torque - avg_angular.cross(angular_momentum);
   //new angular acceleration - we'll use this acceleration in next time step
   next.accelerations.angular = body.getInertiaInv() * angular_momentum_rate;
   
-  /************************* Update pose and twist after dt ************************/
+  // ************************* Update pose and twist after dt ************************ //
   //Verlet integration: http://www.physics.udel.edu/~bnikolic/teaching/phys660/numerical_ode/node5.html
   next.twist.linear = current.twist.linear + (current.accelerations.linear + next.accelerations.linear) * (0.5f * dt_real);
   next.twist.angular = current.twist.angular + (current.accelerations.angular + next.accelerations.angular) * (0.5f * dt_real);
@@ -384,15 +406,15 @@ void Aerodynamics::PreUpdate(
   
   if (next.twist.linear.squaredNorm() > EarthUtils::SpeedOfLight * EarthUtils::SpeedOfLight) { //speed of light
       next.twist.linear /= (next.twist.linear.norm() / EarthUtils::SpeedOfLight);
-      next.accelerations.linear = Vector3r::Zero();
+      next.accelerations.linear = gz::math::Vector3d::Zero();
   }
   //
   //for disc of 1m radius which angular velocity translates to speed of light on tangent?
   if (next.twist.angular.squaredNorm() > EarthUtils::SpeedOfLight * EarthUtils::SpeedOfLight) { //speed of light
       next.twist.angular /= (next.twist.angular.norm() / EarthUtils::SpeedOfLight);
-      next.accelerations.angular = Vector3r::Zero();
+      next.accelerations.angular = gz::math::Vector3d::Zero();
   }
-  computeNextPose(dt, current.pose, avg_linear, avg_angular, next);
+  computeNextPose(dt, current.pose, avg_linear, avg_angular, next);*/
   /*SCHEINK*/
 
 
@@ -400,6 +422,8 @@ void Aerodynamics::PreUpdate(
   // Transform the force and torque to the world frame.
 
   // Apply the force and torque at COM.
+  gz::math::Vector3d forceWorld;
+  gz::math::Vector3d torqueWorld;
   this->dataPtr->link.AddWorldWrench(_ecm, forceWorld, torqueWorld);
 }
 
