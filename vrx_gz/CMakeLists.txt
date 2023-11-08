@@ -143,6 +143,7 @@ install(
 
 # Plugins
 list(APPEND VRX_GZ_PLUGINS
+  Aerodynamics
   AcousticPingerPlugin
   BallShooterPlugin
   LightBuoyPlugin

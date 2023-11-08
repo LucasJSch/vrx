@@ -59,6 +59,28 @@
         <nRR>800.0</nRR>
       </plugin>
 
+      <plugin
+        filename="libAerodynamics.so"
+        name="vrx::Aerodynamics">
+        <link_name>${namespace}/base_link</link_name>
+        <!-- Added mass -->
+        <xDotU>0.0</xDotU>
+        <yDotV>0.0</yDotV>
+        <nDotR>0.0</nDotR>
+        <!-- Linear and quadratic drag -->
+        <xU>100.0</xU>
+        <xUU>150.0</xUU>
+        <yV>100.0</yV>
+        <yVV>100.0</yVV>
+        <zW>500.0</zW>
+        <kP>300.0</kP>
+        <kPP>600.0</kPP>
+        <mQ>900.0</mQ>
+        <mQQ>900.0</mQQ>
+        <nR>800.0</nR>
+        <nRR>800.0</nRR>
+      </plugin>
+
     </gazebo>
   </xacro:macro>
 </robot>
