@@ -14,13 +14,14 @@
  * limitations under the License.
  *
  */
-#ifndef VRX_SIMPLE_HYDRODYNAMICS_HH_
-#define VRX_SIMPLE_HYDRODYNAMICS_HH_
+#ifndef VRX_AERODYNAMICS_HH_
+#define VRX_AERODYNAMICS_HH_
 
 #include <memory>
 #include <gz/sim/System.hh>
 #include <sdf/sdf.hh>
 #include <gz/math/Vector3.hh>
+#include <gz/utils/ImplPtr.hh>
 
 
 namespace vrx
@@ -120,7 +121,7 @@ namespace vrx
     /// \brief Private data pointer.
     private: std::unique_ptr<AerodynamicsPrivate> dataPtr;
 
-    private: Wrench getDragWrench(const gz::math::Quaterniond& orientation,
+    private: Wrench getDragWrench(gz::sim::EntityComponentManager &_ecm, const gz::math::Quaterniond& orientation,
                      const gz::math::Vector3d& linear_vel,
                      const gz::math::Vector3d& angular_vel_body,
                      const gz::math::Vector3d& wind_world) const;

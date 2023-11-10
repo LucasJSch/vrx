@@ -121,7 +121,7 @@ BoxVolume::BoxVolume(double _x, double _y, double _z)
     : x(_x),
       y(_y),
       z(_z),
-      polyhedron(Polyhedron::makeCube(_x, _y, _z))
+      ShapeVolume(Polyhedron::makeCube(_x, _y, _z))  
 {
   this->type = ShapeType::Box;
   this->volume = _x * _y * _z;
@@ -151,7 +151,7 @@ Volume BoxVolume::CalculateVolume(const math::Pose3d &_pose,
 CylinderVolume::CylinderVolume(double _r, double _h)
     : r(_r),
       h(_h),
-      polyhedron(Polyhedron::makeCylinder(_r, _h, 20))
+      ShapeVolume(Polyhedron::makeCylinder(_r, _h, 20))  
 {
   this->type = ShapeType::Cylinder;
   this->volume = M_PI * _r * _r * _h;
@@ -178,7 +178,8 @@ Volume CylinderVolume::CalculateVolume(const math::Pose3d &_pose,
 
 //////////////////////////////////////////////////
 SphereVolume::SphereVolume(double _r)
-    : r(_r)
+    : r(_r), 
+    ShapeVolume()
 {
   this->type = ShapeType::Sphere;
   this->volume = 4./3. * M_PI * _r * _r * _r;

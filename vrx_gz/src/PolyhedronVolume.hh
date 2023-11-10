@@ -152,6 +152,33 @@ namespace vrx
 
     /// \brief Values below this are zeroed out.
     private: const double EPSILON = 1e-6;
+
+    public: uint getAmountOfFaces() {
+      return faces.size();
+    }
+
+    public: gz::math::Vector3d getFaceCenterPosition(uint face_index) {
+      Face face = faces[face_index];
+      gz::math::Vector3d v1 = vertices[face.i1];
+      gz::math::Vector3d v2 = vertices[face.i2];
+      gz::math::Vector3d v3 = vertices[face.i3];
+      return (v1 + v2 + v3) / 3;
+    }
+
+    public: gz::math::Vector3d getFaceNormal(uint face_index) {
+      Face face = faces[face_index];
+      gz::math::Vector3d v1 = vertices[face.i1];
+      gz::math::Vector3d v2 = vertices[face.i2];
+      gz::math::Vector3d v3 = vertices[face.i3];
+
+      gz::math::Vector3d A = v2 - v1;
+      gz::math::Vector3d B = v3 - v1;
+      // https://stackoverflow.com/questions/19350792/calculate-normal-of-a-single-triangle-in-3d-space
+      return gz::math::Vector3d(A.Y()*B.Z() - A.Z()*B.Y(),
+                                A.Z()*B.X() - A.X()*B.Z(),
+                                A.X()*B.Y() - A.Y()*B.X());
+    }
+
   };  // class Polyhedron
 }
 

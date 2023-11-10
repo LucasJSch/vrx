@@ -41,6 +41,11 @@ namespace vrx
   /// \brief Parent shape object for volume objects.
   struct ShapeVolume
   {
+
+    ShapeVolume(){}
+
+    ShapeVolume(Polyhedron polyhedron) : polyhedron(polyhedron){}
+
     /// \brief Default destructor.
     virtual ~ShapeVolume() = default;
 
@@ -70,6 +75,12 @@ namespace vrx
     /// \brief Average length of object.
     /// Estimate used for drag torque calculation.
     double averageLength;
+
+    protected: Polyhedron polyhedron;
+
+    public: Polyhedron getPolyhedron() {
+      return polyhedron;
+    }
   };
 
   typedef std::unique_ptr<ShapeVolume> ShapeVolumePtr;
@@ -100,9 +111,6 @@ namespace vrx
 
     /// \brief Height.
     double z;
-
-    /// \brief Polyhedron defining a box.
-    private: Polyhedron polyhedron;
   };
 
   /// \brief Cylinder shape volume.
@@ -126,9 +134,6 @@ namespace vrx
 
     /// \brief Height of cylinder.
     double h;
-
-    /// \brief Polyhedron defining a cylinder.
-    private: Polyhedron polyhedron;
   };
 
   /// \brief Sphere shape volume.

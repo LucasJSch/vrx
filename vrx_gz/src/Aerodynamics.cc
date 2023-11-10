@@ -20,11 +20,13 @@
 #include <gz/common/Profiler.hh>
 #include <gz/math/Vector3.hh>
 #include <gz/plugin/Register.hh>
+#include <gz/sim/components/Pose.hh>
 #include <sdf/sdf.hh>
 
 #include "gz/sim/Link.hh"
 #include "gz/sim/Model.hh"
 
+#include "ShapeVolume.hh"
 #include "Aerodynamics.hh"
 
 using namespace gz;
@@ -33,81 +35,29 @@ using namespace vrx;
 
 class vrx::AerodynamicsPrivate
 {
+
+  /// \brief Entity of the model attached to the plugin.
+  public: sim::Entity entity = sim::kNullEntity;
+
   /// \brief The link entity.
   public: sim::Link link;
 
   /// \brief Model interface.
   public: Model model{kNullEntity};
 
-  /// \brief Added mass in surge, X_\dot{u}.
-  public: double paramXdotU{0.0};
-
-  /// \brief Added mass in sway, Y_\dot{v}.
-  public: double paramYdotV{0.0};
-
-  /// \brief Added mass in heave, Z_\dot{w}.
-  public: double paramZdotW{0.0};
-
-  /// \brief Added mass in roll, K_\dot{p}.
-  public: double paramKdotP{0.0};
-
-  /// \brief Added mass in pitch, M_\dot{q}.
-  public: double paramMdotQ{0.0};
-
-  /// \brief Added mass in yaw, N_\dot{r}.
-  public: double paramNdotR{0.0};
-
-  /// \brief Linear drag in surge.
-  public: double paramXu{0.0};
-
-  /// \brief Quadratic drag in surge.
-  public: double paramXuu{0.0};
-
-  /// \brief Linear drag in sway.
-  public: double paramYv{0.0};
-
-  /// \brief Quadratic drag in sway.
-  public: double paramYvv{0.0};
-
-  /// \brief Linear drag in heave.
-  public: double paramZw{0.0};
-
-  /// \brief Quadratic drag in heave.
-  public: double paramZww{0.0};
-
-  /// \brief Linear drag in roll.
-  public: double paramKp{0.0};
-
-  /// \brief Quadratic drag in roll.
-  public: double paramKpp{0.0};
-
-  /// \brief Linear drag in pitch.
-  public: double paramMq{0.0};
-
-  /// \brief Quadratic drag in pitch.
-  public: double paramMqq{0.0};
-
-  /// \brief Linear drag in yaw.
-  public: double paramNr{0.0};
-
-  /// \brief Quadratic drag in yaw.
-  public: double paramNrr{0.0};
-
-  /// \brief Added mass of vehicle.
-  /// See: https://en.wikipedia.org/wiki/Added_mass
-  public: Eigen::MatrixXd Ma;
-
   /// \brief Object vertices.
-  public: std::vector<gz::math::Vector3d> vertices;
+  //public: std::vector<gz::math::Vector3d> vertices;
 
   public: int numVertices;
 
   public: int airDensity;
+
+  public: ShapeVolumePtr shapeVolumePtr;
 };
 
 
 //////////////////////////////////////////////////
-Aerodynamics::Aerodynamics()
+vrx::Aerodynamics::Aerodynamics()
   : dataPtr(std::make_unique<AerodynamicsPrivate>())
 {
 }
@@ -127,6 +77,8 @@ void Aerodynamics::Configure(const Entity &_entity,
   if (_sdf->HasElement("drone_num_vertices"))
     this->dataPtr->numVertices = _sdf->Get<double>("drone_num_vertices");
 
+  this->dataPtr->entity = _entity;
+
   // Parse required elements.
   if (!_sdf->HasElement("link_name"))
   {
@@ -143,62 +95,21 @@ void Aerodynamics::Configure(const Entity &_entity,
     return;
   }
 
-  this->dataPtr->link.EnableVelocityChecks(_ecm);
-  this->dataPtr->link.EnableAccelerationChecks(_ecm);
-
-  this->dataPtr->paramXdotU       = _sdf->Get<double>("xDotU", 5  ).first;
-  this->dataPtr->paramYdotV       = _sdf->Get<double>("yDotV", 5  ).first;
-  this->dataPtr->paramZdotW       = _sdf->Get<double>("zDotW", 0.1).first;
-  this->dataPtr->paramKdotP       = _sdf->Get<double>("kDotP", 0.1).first;
-  this->dataPtr->paramMdotQ       = _sdf->Get<double>("mDotQ", 0.1).first;
-  this->dataPtr->paramNdotR       = _sdf->Get<double>("nDotR", 1  ).first;
-  this->dataPtr->paramXu          = _sdf->Get<double>("xU",   20  ).first;
-  this->dataPtr->paramXuu         = _sdf->Get<double>("xUU",   0  ).first;
-  this->dataPtr->paramYv          = _sdf->Get<double>("yV",   20  ).first;
-  this->dataPtr->paramYvv         = _sdf->Get<double>("yVV",   0  ).first;
-  this->dataPtr->paramZw          = _sdf->Get<double>("zW",   20  ).first;
-  this->dataPtr->paramZww         = _sdf->Get<double>("zWW",   0  ).first;
-  this->dataPtr->paramKp          = _sdf->Get<double>("kP",   20  ).first;
-  this->dataPtr->paramKpp         = _sdf->Get<double>("kPP",   0  ).first;
-  this->dataPtr->paramMq          = _sdf->Get<double>("mQ",   20  ).first;
-  this->dataPtr->paramMqq         = _sdf->Get<double>("mQQ",   0  ).first;
-  this->dataPtr->paramNr          = _sdf->Get<double>("nR",   20  ).first;
-  this->dataPtr->paramNrr         = _sdf->Get<double>("nRR",   0  ).first;
-
-  // Added mass according to Fossen's equations (p 37).
-  this->dataPtr->Ma = Eigen::MatrixXd::Zero(6, 6);
-
-  this->dataPtr->Ma(0, 0) = this->dataPtr->paramXdotU;
-  this->dataPtr->Ma(1, 1) = this->dataPtr->paramYdotV;
-  this->dataPtr->Ma(2, 2) = this->dataPtr->paramZdotW;
-  this->dataPtr->Ma(3, 3) = this->dataPtr->paramKdotP;
-  this->dataPtr->Ma(4, 4) = this->dataPtr->paramMdotQ;
-  this->dataPtr->Ma(5, 5) = this->dataPtr->paramNdotR;
+  auto element_ptr = const_cast<sdf::Element *>(_sdf.get());
+  sdf::ElementPtr geometry = element_ptr->GetElement("geometry");
+  this->dataPtr->shapeVolumePtr = std::move(ShapeVolume::makeShape(geometry));
 
   gzdbg << "Aerodynamics plugin successfully configured with the "
         << "following parameters:"                        << std::endl;
   gzdbg << "  <link_name>: " << linkName                  << std::endl;
-  gzdbg << "  <xDotU>: "     << this->dataPtr->paramXdotU << std::endl;
-  gzdbg << "  <yDotV>: "     << this->dataPtr->paramYdotV << std::endl;
-  gzdbg << "  <zDotW>: "     << this->dataPtr->paramZdotW << std::endl;
-  gzdbg << "  <kDotP>: "     << this->dataPtr->paramKdotP << std::endl;
-  gzdbg << "  <mDotQ>: "     << this->dataPtr->paramMdotQ << std::endl;
-  gzdbg << "  <nDotR>: "     << this->dataPtr->paramNdotR << std::endl;
-  gzdbg << "  <xU>: "        << this->dataPtr->paramXu    << std::endl;
-  gzdbg << "  <xUU>: "       << this->dataPtr->paramXuu   << std::endl;
-  gzdbg << "  <yV>: "        << this->dataPtr->paramYv    << std::endl;
-  gzdbg << "  <yVV>: "       << this->dataPtr->paramYvv   << std::endl;
-  gzdbg << "  <zW>: "        << this->dataPtr->paramZw    << std::endl;
-  gzdbg << "  <zWW>: "       << this->dataPtr->paramZww   << std::endl;
-  gzdbg << "  <kP>: "        << this->dataPtr->paramKp    << std::endl;
-  gzdbg << "  <kPP>: "       << this->dataPtr->paramKpp   << std::endl;
-  gzdbg << "  <mQ>: "        << this->dataPtr->paramMq    << std::endl;
-  gzdbg << "  <mQQ>: "       << this->dataPtr->paramMqq   << std::endl;
-  gzdbg << "  <nR>: "        << this->dataPtr->paramNr    << std::endl;
-  gzdbg << "  <nRR>: "       << this->dataPtr->paramNrr   << std::endl;
 }
 
-Wrench Aerodynamics::getDragWrench(const math::Quaterniond& orientation,
+gz::math::Vector3d transformVector(math::Pose3d ref_pose, gz::math::Vector3d vector)
+{
+  return ref_pose.Rot().Inverse().RotateVector(vector - ref_pose.Pos());
+}
+
+Wrench Aerodynamics::getDragWrench(gz::sim::EntityComponentManager &_ecm, const gz::math::Quaterniond& orientation,
                      const gz::math::Vector3d& linear_vel,
                      const gz::math::Vector3d& angular_vel_body,
                      const gz::math::Vector3d& wind_world) const
@@ -213,25 +124,30 @@ Wrench Aerodynamics::getDragWrench(const math::Quaterniond& orientation,
 
   Wrench wrench;
   const float air_density = this->dataPtr->airDensity;
+  auto comPose = this->dataPtr->link.WorldInertialPose(_ecm);
+
+  auto modelPose =  _ecm.Component<components::Pose>(this->dataPtr->entity)->Data();
 
   // Use relative velocity of the body wrt wind
   const gz::math::Vector3d relative_vel = linear_vel - wind_world;
-  //const gz::math::Vector3d linear_vel_body = VectorMath::transformToBodyFrame(relative_vel, orientation);
+  const gz::math::Vector3d linear_vel_body = modelPose.Rot().Inverse() * relative_vel;
 
-  // TODO(scheink): Compute this
-  /*for (uint vi = 0; vi < vertices.size(); ++vi) {
-      const auto& vertex = this->dataPtr->vertices(vi);
-      const gz::math::Vector3d vel_vertex = linear_vel_body + angular_vel_body.cross(vertex.getPosition());
-      const float vel_comp = vertex.getNormal().dot(vel_vertex);
+  for (uint vi = 0; vi < this->dataPtr->shapeVolumePtr->getPolyhedron().getAmountOfFaces(); ++vi) {
+      auto face_center_pos = transformVector(modelPose, this->dataPtr->shapeVolumePtr->getPolyhedron().getFaceCenterPosition(vi));
+      auto face_normal = transformVector(modelPose, this->dataPtr->shapeVolumePtr->getPolyhedron().getFaceNormal(vi));
+      const gz::math::Vector3d vel_vertex = linear_vel_body + angular_vel_body.Cross(face_center_pos);
+      const float vel_comp = face_normal.Dot(vel_vertex);
       //if vel_comp is -ve then we cull the face. If velocity too low then drag is not generated
-      if (vel_comp > kDragMinVelocity) {
-          const gz::math::Vector3d drag_force = vertex.getNormal() * (-vertex.getDragFactor() * air_density * vel_comp * vel_comp);
-          const gz::math::Vector3d drag_torque = vertex.getPosition().cross(drag_force);
+      if (vel_comp > 0.1) {
+          // TODO(Scheink): Parece ser cte. getDragFactor(), pero doble chequear una vez que funcione todo.
+          // https://github.com/microsoft/AirSim/blob/main/AirLib/include/physics/DebugPhysicsBody.hpp#L42C48-L42C48
+          const gz::math::Vector3d drag_force = face_normal * (-1.3 * air_density * vel_comp * vel_comp);
+          const gz::math::Vector3d drag_torque = face_center_pos.Cross(drag_force);
 
           wrench.force += drag_force;
           wrench.torque += drag_torque;
       }
-  }*/
+  }
 
   //convert force to world frame, leave torque to local frame
   //wrench.force = VectorMath::transformToWorldFrame(wrench.force, orientation);
@@ -364,9 +280,6 @@ void Aerodynamics::PreUpdate(
   state << localLinearVel.X(), localLinearVel.Y(), localLinearVel.Z(),
     localAngularVel.X(), localAngularVel.Y(), localAngularVel.Z();
 
-  // Added Mass.
-  const Eigen::VectorXd kAmassVec = -1.0 * this->dataPtr->Ma * stateDot;
-
   /*SCHEINK*/
   //add linear drag due to velocity we had since last dt seconds + wind
   //drag vector magnitude is proportional to v^2, direction opposite of velocity
@@ -382,8 +295,8 @@ void Aerodynamics::PreUpdate(
   avg_angular.Y() = worldAngularVel->Y() + worldAngularAccel->Y() * (0.5f * std::chrono::duration<double>(dt_real).count());
   avg_angular.Z() = worldAngularVel->Z() + worldAngularAccel->Z() * (0.5f * std::chrono::duration<double>(dt_real).count());
   gz::math::Vector3d wind; // TODO(scheink): Set this
-  /*const Wrench drag_wrench = getDragWrench(body, comPose.orientation, avg_linear, avg_angular, wind);
-  const Wrench body_wrench = getBodyWrench(body, comPose.orientation);
+  const Wrench drag_wrench = getDragWrench(_ecm, orientation, avg_linear, avg_angular, wind);
+  /*const Wrench body_wrench = getBodyWrench(body, comPose.orientation);
   Wrench next_wrench = body_wrench + drag_wrench;
   Kinematics::State next;
   next.accelerations.linear = (next_wrench.force / body.getMass()) + body.getEnvironment().getState().gravity;
