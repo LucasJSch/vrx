@@ -295,7 +295,7 @@ void Aerodynamics::PreUpdate(
   avg_angular.Y() = worldAngularVel->Y() + worldAngularAccel->Y() * (0.5f * std::chrono::duration<double>(dt_real).count());
   avg_angular.Z() = worldAngularVel->Z() + worldAngularAccel->Z() * (0.5f * std::chrono::duration<double>(dt_real).count());
   gz::math::Vector3d wind; // TODO(scheink): Set this
-  const Wrench drag_wrench = getDragWrench(_ecm, orientation, avg_linear, avg_angular, wind);
+  const Wrench drag_wrench = getDragWrench(_ecm, comPose->Rot(), avg_linear, avg_angular, wind);
   /*const Wrench body_wrench = getBodyWrench(body, comPose.orientation);
   Wrench next_wrench = body_wrench + drag_wrench;
   Kinematics::State next;

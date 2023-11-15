@@ -59,7 +59,7 @@
         <nRR>800.0</nRR>
       </plugin>
 
-      <plugin
+      <!--plugin
         filename="libAerodynamics.so"
         name="vrx::Aerodynamics">
         <link_name>${namespace}/base_link</link_name>
@@ -79,7 +79,7 @@
         <mQQ>900.0</mQQ>
         <nR>800.0</nR>
         <nRR>800.0</nRR>
-      </plugin>
+      </plugin-->
 
     </gazebo>
   </xacro:macro>

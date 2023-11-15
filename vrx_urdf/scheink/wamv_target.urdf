@@ -168,11 +168,9 @@
       <air_density>1000</air_density>
       <drone_num_vertices>6</drone_num_vertices>
       <link_name>base_link</link_name>
-      <!-- Added mass -->
       <xDotU>0.0</xDotU>
       <yDotV>0.0</yDotV>
       <nDotR>0.0</nDotR>
-      <!-- Linear and quadratic drag -->
       <xU>100.0</xU>
       <xUU>150.0</xUU>
       <yV>100.0</yV>
