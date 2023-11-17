@@ -182,6 +182,12 @@
       <mQQ>900.0</mQQ>
       <nR>800.0</nR>
       <nRR>800.0</nRR>
+      <geometry>
+        <cylinder>
+          <radius>0.325</radius>
+          <length>0.1</length>
+        </cylinder>
+      </geometry>
     </plugin>
   </gazebo>
   <!-- === [Un]lock the robot to the world === -->

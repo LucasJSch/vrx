@@ -68,8 +68,10 @@ void Aerodynamics::Configure(const Entity &_entity,
     EntityComponentManager &_ecm,
     EventManager &/*_eventMgr*/)
 {
+  gzerr << "Aerodynamics Setting model" << std::endl;
   this->dataPtr->model = Model(_entity);
 
+  gzerr << "Aerodynamics Setting air density and num vertices" << std::endl;
   // Parse optional <air_density>.
   if (_sdf->HasElement("air_density"))
     this->dataPtr->airDensity = _sdf->Get<double>("air_density");
@@ -86,6 +88,7 @@ void Aerodynamics::Configure(const Entity &_entity,
     return;
   }
 
+  gzerr << "Aerodynamics Setting link name" << std::endl;
   std::string linkName = _sdf->Get<std::string>("link_name");
   this->dataPtr->link = Link(this->dataPtr->model.LinkByName(_ecm, linkName));
   if (!this->dataPtr->link.Valid(_ecm))
@@ -95,6 +98,7 @@ void Aerodynamics::Configure(const Entity &_entity,
     return;
   }
 
+  gzerr << "Aerodynamics setting geometry" << std::endl;
   auto element_ptr = const_cast<sdf::Element *>(_sdf.get());
   sdf::ElementPtr geometry = element_ptr->GetElement("geometry");
   this->dataPtr->shapeVolumePtr = std::move(ShapeVolume::makeShape(geometry));

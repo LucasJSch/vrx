@@ -51,6 +51,22 @@ install(
   TARGETS Waves
   DESTINATION lib)
 
+# Aerodynamics
+add_library(Aerodynamics SHARED
+  src/Aerodynamics.cc
+  src/PolyhedronVolume.cc
+  src/ShapeVolume.cc
+)
+target_link_libraries(Aerodynamics PUBLIC
+  gz-common${GZ_COMMON_VER}::gz-common${GZ_COMMON_VER}
+  gz-sim${GZ_SIM_VER}::core
+  gz-math${GZ_MATH_VER}
+  Waves
+)
+install(
+  TARGETS Aerodynamics
+  DESTINATION lib)
+
 # Buoyancy
 add_library(PolyhedraBuoyancyDrag SHARED
   src/PolyhedraBuoyancyDrag.cc
@@ -143,7 +159,7 @@ install(
 
 # Plugins
 list(APPEND VRX_GZ_PLUGINS
-  Aerodynamics
+#  Aerodynamics
   AcousticPingerPlugin
   BallShooterPlugin
   LightBuoyPlugin
