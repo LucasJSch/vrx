@@ -142,6 +142,14 @@ def thrust(model_name, side):
         ros_type='std_msgs/msg/Float64',
         direction=BridgeDirection.ROS_TO_GZ)
 
+def rotor(model_name, rotor_name):
+    return Bridge(
+        gz_topic=f'{model_name}/rotor/{rotor_name}/throttle',
+        ros_topic=f'rotors/{rotor_name}/throttle',
+        gz_type='ignition.msgs.Double',
+        ros_type='std_msgs/msg/Float64',
+        direction=BridgeDirection.ROS_TO_GZ)
+
 def thrust_joint_pos(model_name, side):
     # ROS naming policy indicates that first character of a name must be an alpha
     # character. In the case below, the gz topic has the joint index 0 as the
@@ -214,6 +222,10 @@ def payload_bridges(world_name, model_name, link_name, sensor_name, sensor_type)
     elif 'thruster_thrust_' in sensor_name:
         bridges = [
             thrust(model_name, sensor_type),
+        ]
+    elif 'rotor_throttle_' in sensor_name:
+        bridges = [
+            rotor(model_name, sensor_type),
         ]
     elif 'thruster_rotate_' in sensor_name:
         bridges = [

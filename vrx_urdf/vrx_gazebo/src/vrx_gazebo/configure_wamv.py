@@ -6,9 +6,11 @@ import os
 
 from vrx_gazebo.compliance import ComponentCompliance
 from vrx_gazebo.compliance import ThrusterCompliance
+from vrx_gazebo.compliance import RotorCompliance
 
 from vrx_gazebo.utils import create_xacro_file
 from vrx_gazebo.utils import add_gazebo_thruster_config
+from vrx_gazebo.utils import add_gazebo_rotor_config
 
 
 def create_thruster_xacro(node):
@@ -65,6 +67,59 @@ def create_thruster_xacro(node):
                                 )
      return compliant
 
+def create_rotor_xacro(node):
+     """
+     Purpose: Create a rotor xacro file using the given
+              rosparameters
+     """
+     # Get yaml files for rotor number and pose
+     rotor_yaml = node.get_parameter('rotor_yaml').get_parameter_value().string_value
+     node.get_logger().info('\nUsing %s as the rotor configuration yaml file\n' %
+                   rotor_yaml)
+
+     # Set rotor xacro target
+     rotor_xacro_target = os.path.splitext(rotor_yaml)[0] + '.xacro'
+     node.get_logger().info('\nTrying to open %s \n' % rotor_xacro_target)
+
+     # Things to start/open the macro
+     rotor_boiler_plate_top = ('<?xml version="1.0"?>\n'
+                                  '<robot '
+                                  'xmlns:xacro="http://ros.org/wiki/xacro" '
+                                  'name="wam-v-rotors">\n'
+                                  '  <xacro:include filename='
+                                  '"$(find wamv_description)/urdf/rotors/'
+                                  'engine.xacro" />\n')
+
+     # Things to close the macro
+     rotor_boiler_plate_bot = ''
+
+     # Check if valid number of rotors and valid rotor parameters
+     rotors_dir = node.get_parameter('rotors_dir').get_parameter_value().string_value + '/'
+     comp = RotorCompliance(rotors_dir)
+     rotor_num_test = comp.number_compliance
+     rotor_param_test = comp.param_compliance
+
+     # Create rotor xacro with rotor macros
+     compliant = create_xacro_file(yaml_file=rotor_yaml,
+                                   xacro_target=rotor_xacro_target,
+                                   boiler_plate_top=rotor_boiler_plate_top,
+                                   boiler_plate_bot=rotor_boiler_plate_bot,
+                                   num_test=rotor_num_test,
+                                   param_test=rotor_param_test)
+
+     gz_boiler_plate_top = ('      <xacro:include filename="$(find wamv_gazebo)'
+                            '/urdf/rotor_layouts/'
+                            'wamv_gazebo_rotor_config.xacro" />\n')
+     gz_boiler_plate_bot = ('</robot>')
+
+
+     # Append gazebo rotor config to rotor xacro
+     add_gazebo_rotor_config(yaml_file=rotor_yaml,
+                                xacro_target=rotor_xacro_target,
+                                boiler_plate_top=gz_boiler_plate_top,
+                                boiler_plate_bot=gz_boiler_plate_bot,
+                                )
+     return compliant
 
 def create_component_xacro(node):
     """
@@ -109,25 +164,34 @@ def main(args=None):
     node = rclpy.create_node('configure_wamv')
 
     node.declare_parameter('thruster_yaml', '')
+    node.declare_parameter('rotor_yaml', '')
     node.declare_parameter('component_yaml', '')
     node.declare_parameter('wamv_target', '')
     node.declare_parameter('wamv_gazebo', '')
     node.declare_parameter('wamv_locked', '')
     node.declare_parameter('components_dir', '')
     node.declare_parameter('thrusters_dir', '')
+    node.declare_parameter('rotors_dir', '')
 
     # Check if yaml files were given
     thruster_yaml = node.get_parameter('thruster_yaml').get_parameter_value().string_value
+    rotor_yaml = node.get_parameter('rotor_yaml').get_parameter_value().string_value
     component_yaml = node.get_parameter('component_yaml').get_parameter_value().string_value
     received_thruster_yaml = len(thruster_yaml) > 0
+    received_rotor_yaml = len(rotor_yaml) > 0
     received_component_yaml = len(component_yaml) > 0
 
     thruster_compliant = None
+    rotor_compliant = None
     component_compliant = None
 
     # Setup thruster xacro
     if received_thruster_yaml:
         thruster_compliant = create_thruster_xacro(node)
+
+    # Setup rotor xacro
+    if received_rotor_yaml:
+        rotor_compliant = create_rotor_xacro(node)
 
     # Setup component xacro
     if received_component_yaml:
@@ -151,6 +215,11 @@ def main(args=None):
         create_urdf_command += (" yaml_thruster_generation:=true "
                                 "thruster_xacro_file:=" +
                                 thruster_xacro_target)
+    if received_rotor_yaml:
+        rotor_xacro_target = os.path.splitext(rotor_yaml)[0] + '.xacro'
+        create_urdf_command += (" yaml_rotor_generation:=true "
+                                "rotor_xacro_file:=" +
+                                rotor_xacro_target)
     if received_component_yaml:
         component_xacro_target = os.path.splitext(component_yaml)[0] + '.xacro'
         create_urdf_command += (" yaml_component_generation:=true "
@@ -160,6 +229,12 @@ def main(args=None):
     os.system(create_urdf_command)
     if not (thruster_compliant and component_compliant):
         node.get_logger().error('\nThis component/thruster configuration is NOT compliant ' +
+                                'with the (current) VRX constraints. A urdf file will ' +
+                                'be created, but please note that the above errors ' +
+                                'must be fixed for this to be a valid configuration ' +
+                                'for the VRX competition.\n')
+    if not (rotor_compliant and component_compliant):
+        node.get_logger().error('\nThis component/rotor configuration is NOT compliant ' +
                                 'with the (current) VRX constraints. A urdf file will ' +
                                 'be created, but please note that the above errors ' +
                                 'must be fixed for this to be a valid configuration ' +

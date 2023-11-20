@@ -307,6 +307,9 @@ class Model:
             if plugin.name() == 'gz::sim::systems::Thruster':
                 name = self.name_from_plugin(plugin.__str__())
                 payload['thruster_thrust_' + name] = [link.name(), name]
+            if plugin.name() == 'gz::sim::systems::Rotor':
+                name = self.name_from_plugin(plugin.__str__())
+                payload['rotor_throttle_' + name] = [link.name(), name]
             elif plugin.name() == 'gz::sim::systems::JointPositionController':
                 name = self.name_from_plugin(plugin.__str__())
                 payload['thruster_rotate_' + name] = [link.name(), name]

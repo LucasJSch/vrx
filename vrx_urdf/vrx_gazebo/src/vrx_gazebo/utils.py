@@ -114,6 +114,55 @@ def add_gazebo_thruster_config(xacro_target,
     xacro_file.close()
 
 
+def add_gazebo_rotor_config(xacro_target,
+                               yaml_file=None,
+                               requested_macros=None,
+                               boiler_plate_top='',
+                               boiler_plate_bot='',
+                               ):
+    """
+    Purpose: Append gazebo rotor config tags to a .xacro file to
+             create a custom WAM-V .urdf
+
+    Args:
+        xacro_target (str): Target file for writing the xacro to
+                            NOTE: will append an existing file
+                                  should be used on rotor
+                                  xacro file created by
+                                  create_xacro_file()
+        yaml_file (str): .yaml file with requested macros
+        requested_macros (dict): if dict is passed directly => ignore yaml file
+        boiler_plate_top (str): First string to append to the xacro file
+        boiler_plate_bot (str): Last string to append to the xacro file
+
+    Appends gazebo rotor config tags to 'xacro_target'
+    """
+    # Initialize xacro file for appending
+    xacro_file = open(xacro_target, 'a')
+    xacro_file.write(boiler_plate_top)
+
+    # If requested_macros not given, then open yaml_file
+    if requested_macros is None:
+        s = open(yaml_file, 'r')
+        requested_macros = yaml.safe_load(s)
+
+        # Handle case with empty yaml file
+        if requested_macros is None:
+            xacro_file.write(boiler_plate_bot)
+            xacro_file.close()
+            return
+
+    # WAM-V Gazebo thrust plugin setup
+    for key, objects in requested_macros.items():
+        for obj in objects:
+            xacro_file.write('      ' +
+                             macro_call_gen('wamv_gazebo_rotor_config',
+                                            {'name': obj['prefix']}))
+
+    xacro_file.write(boiler_plate_bot)
+    xacro_file.close()
+
+
 def macro_call_gen(name, params={}):
     macro_call = '  <xacro:%s ' % name
     endline = '/>\n'

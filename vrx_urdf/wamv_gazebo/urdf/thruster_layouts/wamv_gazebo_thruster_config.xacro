@@ -22,6 +22,21 @@
       <!-- Not used by Gazebo but used to run the bridge easily -->
       <name>${name}</name>
     </plugin>
+    <plugin
+      filename="gz-sim-rotor-system"
+      name="gz::sim::systems::Rotor">
+      <joint_name>${namespace}/${name}_engine_propeller_joint</joint_name>
+      <thrust_coefficient>0.004422</thrust_coefficient>
+      <fluid_density>1000</fluid_density>
+      <propeller_diameter>0.2</propeller_diameter>
+      <velocity_control>true</velocity_control>
+      <!-- max total thrust / 2 -->
+      <max_thrust_cmd>${((x_u + x_uu * max_velocity_mps) * max_velocity_mps)/ 2}</max_thrust_cmd>
+      <namespace>${namespace}</namespace>
+      <topic>thrusters/${name}/thrust</topic>
+      <!-- Not used by Gazebo but used to run the bridge easily -->
+      <name>${name}</name>
+    </plugin>
 
     <plugin
       filename="gz-sim-joint-position-controller-system"

@@ -145,6 +145,72 @@ class ThrusterCompliance:
         return True
 
 
+class RotorCompliance:
+    def __init__(self, rotors_dir):
+        self.rotors_dir = rotors_dir
+
+        self.config_dir = os.path.join(
+            get_package_share_directory('vrx_gazebo'), 'config', 'wamv_config')
+
+        # open rotor_compliance/bounding_boxes.yaml and the boxes defined
+        self.boxes = find_boxes(os.path.join(self.config_dir,
+            'rotor_compliance', 'bounding_boxes.yaml'))
+        # look at all rotors in rotors directory and get the default params
+        self.default_parameters = get_macros(self.rotors_dir)
+        self.numeric = yaml.safe_load(open(os.path.join(self.config_dir,
+            'rotor_compliance', 'numeric.yaml')))
+        return
+
+    def param_compliance(self, rotor_type, params={}):
+        # ie: given an instance of rotor_type = 'engine'
+        # with parameters = params, is this engine in compliance
+        # check if the rotor is allowed
+
+        params = params.copy()
+        if rotor_type not in self.default_parameters:
+            rclpy.logging.get_logger("compliance").error('%s is not defined anywhere under %s' %
+                         (rotor_type, self.config_dir))
+        assert rotor_type in self.default_parameters,\
+            '%s is not defined anywhere under %s' % \
+            (rotor_type, self.config_dir)
+        for i in params:
+            if i not in self.numeric[rotor_type]['allowed_params']:
+                rclpy.logging.get_logger("compliance").error('%s parameter specification of not permitted' %
+                             (i, rotor_type))
+                assert False
+
+        # add the default params to params if not specified
+        for i in self.default_parameters[rotor_type]:
+            if i not in params:
+                params[i] = self.default_parameters[rotor_type][i]
+        # right now the ONLY compliance check we have is to make sure that
+        # the rotors are in at least one of the boxes
+        xyz = np.array([float(j) for j in [i for i in
+                                           params['position'].split(' ')
+                                           if i != '']])
+        for box in self.boxes:
+            if box.fit(xyz):
+                return True
+        rclpy.logging.get_logger("compliance").error('%s %s is out of bounds' %
+                     (rotor_type, params['prefix']))
+        rclpy.logging.get_logger("compliance").error('%s %s is at xyz=(%s, %s, %s), %s' %
+                     (rotor_type, params['prefix'],
+                      xyz[0], xyz[1], xyz[2],
+                      'it must fit in at least one of the following boxes ' +
+                      'with remaining space:'))
+        for box in self.boxes:
+            rclpy.logging.get_logger("compliance").error('  %s' % str(box))
+        return False
+
+    def number_compliance(self, rotor_type, n):
+        if n > self.numeric[rotor_type]['num']:
+            rclpy.logging.get_logger("compliance").error('Too many %s requested' % rotor_type)
+            rclpy.logging.get_logger("compliance").error('  maximum of %s %s allowed' %
+                         (self.numeric[rotor_type]['num'], rotor_type))
+            return False
+        return True
+
+
 class Box:
     def __init__(self, name, pose, size, space):
         self.name = name

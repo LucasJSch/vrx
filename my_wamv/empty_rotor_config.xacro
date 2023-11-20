@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro" name="wam-v-rotors">
+  <xacro:include filename="$(find wamv_description)/urdf/rotors/engine.xacro" />
+    <!-- === engine === -->
+      <xacro:engine prefix="front_left" position="-2.373776 1.027135 0.318237" orientation="0.0 0.0 0.0" />
+      <xacro:engine prefix="front_right" position="-2.373776 -1.027135 0.318237" orientation="0.0 0.0 0.0" />
+      <xacro:engine prefix="back_left" position="2.373776 1.027135 0.318237" orientation="0.0 0.0 0.0" />
+      <xacro:engine prefix="back_right" position="2.373776 -1.027135 0.318237" orientation="0.0 0.0 0.0" />
+
+      <xacro:include filename="$(find wamv_gazebo)/urdf/rotor_layouts/wamv_gazebo_rotor_config.xacro" />
+        <xacro:wamv_gazebo_rotor_config name="front_left" />
+        <xacro:wamv_gazebo_rotor_config name="front_right" />
+        <xacro:wamv_gazebo_rotor_config name="back_left" />
+        <xacro:wamv_gazebo_rotor_config name="back_right" />
+</robot>
