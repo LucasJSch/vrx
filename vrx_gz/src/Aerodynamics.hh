@@ -126,7 +126,7 @@ namespace vrx
                      const gz::math::Vector3d& angular_vel_body,
                      const gz::math::Vector3d& wind_world) const;
 
-    private: Wrench getBodyWrench(const gz::math::Quaterniond& orientation) const;
+    private: Wrench getBodyWrench(gz::sim::EntityComponentManager &_ecm, const gz::math::Quaterniond& orientation) const;
 
     //private: void computeNextPose(TTimeDelta dt, const Pose& current_pose, const gz::math::Vector3d& avg_linear, const gz::math::Vector3d& avg_angular, Kinematics::State& next) const;
 

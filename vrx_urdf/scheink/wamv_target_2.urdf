@@ -342,6 +342,17 @@
       <nR>800.0</nR>
       <nRR>800.0</nRR>
     </plugin>
+    <plugin filename="libAerodynamics.so" name="vrx::Aerodynamics">
+      <air_density>1.225</air_density>
+      <drone_num_vertices>6</drone_num_vertices>
+      <link_name>wamv/base_link</link_name>
+      <geometry>
+        <cylinder>
+          <radius>0.325</radius>
+          <length>0.1</length>
+        </cylinder>
+      </geometry>
+    </plugin>
   </gazebo>
   <!-- === [Un]lock the robot to the world === -->
   <gazebo>

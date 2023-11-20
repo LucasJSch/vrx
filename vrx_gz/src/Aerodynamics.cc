@@ -21,6 +21,7 @@
 #include <gz/math/Vector3.hh>
 #include <gz/plugin/Register.hh>
 #include <gz/sim/components/Pose.hh>
+#include <gz/sim/components/Inertial.hh>
 #include <sdf/sdf.hh>
 
 #include "gz/sim/Link.hh"
@@ -47,6 +48,9 @@ class vrx::AerodynamicsPrivate
 
   /// \brief Object vertices.
   //public: std::vector<gz::math::Vector3d> vertices;
+
+    /// \brief Object mass (from inertial elem).
+  public: double mass = 0;
 
   public: int numVertices;
 
@@ -88,8 +92,18 @@ void Aerodynamics::Configure(const Entity &_entity,
     return;
   }
 
-  gzerr << "Aerodynamics Setting link name" << std::endl;
+  // Get mass.
   std::string linkName = _sdf->Get<std::string>("link_name");
+  auto inertial = _ecm.Component<sim::components::Inertial>(this->dataPtr->entity);
+  if (!inertial)
+  {
+    gzerr << "Could not inertial element for [" << linkName
+          << "] in model" << std::endl;
+    return;
+  }
+  this->dataPtr->mass = inertial->Data().MassMatrix().Mass();
+
+  gzerr << "Aerodynamics Setting link name" << std::endl;
   this->dataPtr->link = Link(this->dataPtr->model.LinkByName(_ecm, linkName));
   if (!this->dataPtr->link.Valid(_ecm))
   {
@@ -159,7 +173,7 @@ Wrench Aerodynamics::getDragWrench(gz::sim::EntityComponentManager &_ecm, const 
   return wrench;
 }
 
-Wrench Aerodynamics::getBodyWrench(const gz::math::Quaterniond& orientation) const
+Wrench Aerodynamics::getBodyWrench(gz::sim::EntityComponentManager &_ecm, const gz::math::Quaterniond& orientation) const
 {
   //set wrench sum to zero
   Wrench wrench;
@@ -175,10 +189,10 @@ Wrench Aerodynamics::getBodyWrench(const gz::math::Quaterniond& orientation) con
       //add additional torque due to force applies farther than COG
       // tau = r X F
       wrench.torque += vertex.getPosition().cross(vertex_wrench.force);
-  }*/
+  }
 
   //convert force to world frame, leave torque to local frame
-  //wrench.force = VectorMath::transformToWorldFrame(wrench.force, orientation);
+  wrench.force = VectorMath::transformToWorldFrame(wrench.force, orientation);*/
 
   return wrench;
 }
@@ -299,29 +313,11 @@ void Aerodynamics::PreUpdate(
   avg_angular.Y() = worldAngularVel->Y() + worldAngularAccel->Y() * (0.5f * std::chrono::duration<double>(dt_real).count());
   avg_angular.Z() = worldAngularVel->Z() + worldAngularAccel->Z() * (0.5f * std::chrono::duration<double>(dt_real).count());
   gz::math::Vector3d wind; // TODO(scheink): Set this
-  const Wrench drag_wrench = getDragWrench(_ecm, comPose->Rot(), avg_linear, avg_angular, wind);
-  /*const Wrench body_wrench = getBodyWrench(body, comPose.orientation);
-  Wrench next_wrench = body_wrench + drag_wrench;
-  Kinematics::State next;
-  next.accelerations.linear = (next_wrench.force / body.getMass()) + body.getEnvironment().getState().gravity;
-  //get new angular acceleration
-  //Euler's rotation equation: https://en.wikipedia.org/wiki/Euler's_equations_(body_dynamics)
-  //we will use torque to find out the angular acceleration
-  //angular momentum L = I * omega
-  const gz::math::Vector3d angular_momentum = body.getInertia() * avg_angular;
-  const gz::math::Vector3d angular_momentum_rate = next_wrench.torque - avg_angular.cross(angular_momentum);
-  //new angular acceleration - we'll use this acceleration in next time step
-  next.accelerations.angular = body.getInertiaInv() * angular_momentum_rate;
-  
-  // ************************* Update pose and twist after dt ************************ //
-  //Verlet integration: http://www.physics.udel.edu/~bnikolic/teaching/phys660/numerical_ode/node5.html
-  next.twist.linear = current.twist.linear + (current.accelerations.linear + next.accelerations.linear) * (0.5f * dt_real);
-  next.twist.angular = current.twist.angular + (current.accelerations.angular + next.accelerations.angular) * (0.5f * dt_real);
-  
+  Wrench drag_wrench = getDragWrench(_ecm, comPose->Rot(), avg_linear, avg_angular, wind);
+  // TODO(Scheink): Este chequeo puede ser util.
   //if controller has bug, velocities can increase idenfinitely
   //so we need to clip this or everything will turn in to infinity/nans
-  
-  if (next.twist.linear.squaredNorm() > EarthUtils::SpeedOfLight * EarthUtils::SpeedOfLight) { //speed of light
+  /*if (next.twist.linear.squaredNorm() > EarthUtils::SpeedOfLight * EarthUtils::SpeedOfLight) { //speed of light
       next.twist.linear /= (next.twist.linear.norm() / EarthUtils::SpeedOfLight);
       next.accelerations.linear = gz::math::Vector3d::Zero();
   }
@@ -332,16 +328,18 @@ void Aerodynamics::PreUpdate(
       next.accelerations.angular = gz::math::Vector3d::Zero();
   }
   computeNextPose(dt, current.pose, avg_linear, avg_angular, next);*/
-  /*SCHEINK*/
-
-
-
-  // Transform the force and torque to the world frame.
 
   // Apply the force and torque at COM.
   gz::math::Vector3d forceWorld;
   gz::math::Vector3d torqueWorld;
-  this->dataPtr->link.AddWorldWrench(_ecm, forceWorld, torqueWorld);
+  if (drag_wrench.force.X() != 0) {
+    gzdbg << "scheink: wrench force: " << drag_wrench.force << std::endl;
+    //drag_wrench.force.Set(drag_wrench.force.X() * 100, drag_wrench.force.Y() * 100, drag_wrench.force.Z() * 100);
+  }
+  if (drag_wrench.torque.X() != 0) {
+    gzdbg << "scheink: wrench torque: " << drag_wrench.torque << std::endl;
+  }
+  this->dataPtr->link.AddWorldWrench(_ecm, drag_wrench.force, drag_wrench.torque);
 }
 
 GZ_ADD_PLUGIN(vrx::Aerodynamics,

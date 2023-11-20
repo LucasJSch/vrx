@@ -3,7 +3,7 @@
 
   <link name="base_link">
     <visual>
-		 <origin xyz="0 0 0" rpy="0 0 0" />
+		 <origin xyz="0 0 10" rpy="0 0 0" />
          <geometry>
            <box size="0.4 0.2 0.04"/>
          </geometry>
@@ -22,7 +22,7 @@
 
      <link name="FL">
        <visual>
-		 <origin xyz="0.16 0.13 0" rpy="0 0 0" />
+		 <origin xyz="0.16 0.13 10" rpy="0 0 0" />
          <geometry>
             <cylinder length="0.03" radius="0.13"/>
          </geometry>
@@ -40,7 +40,7 @@
      </link>
      <link name="FR">
        <visual>
-		 <origin xyz="0.16 -0.13 0" rpy="0 0 0" />
+		 <origin xyz="0.16 -0.13 10" rpy="0 0 0" />
          <geometry>
             <cylinder length="0.03" radius="0.13"/>
          </geometry>
@@ -58,7 +58,7 @@
      </link>
      <link name="BL">
        <visual>
-		 <origin xyz="-0.09 0.13 0" rpy="0 0 0" />
+		 <origin xyz="-0.09 0.13 10" rpy="0 0 0" />
          <geometry>
             <cylinder length="0.03" radius="0.13"/>
          </geometry>
@@ -76,7 +76,7 @@
      </link>
      <link name="BR">
        <visual>
-		 <origin xyz="-0.09 -0.13 0" rpy="0 0 0" />
+		 <origin xyz="-0.09 -0.13 10" rpy="0 0 0" />
          <geometry>
             <cylinder length="0.03" radius="0.13"/>
          </geometry>
@@ -117,29 +117,49 @@
      </gazebo>
 
      <gazebo>
-    <!-- Left hull -->
     <plugin filename="libSurface.so" name="vrx::Surface">
-      <link_name>base_link</link_name>
+      <link_name>FL</link_name>
       <hull_length>4.9</hull_length>
       <hull_radius>0.213</hull_radius>
       <fluid_level>0</fluid_level>
       <points>
-        <point>0.6 1.03 0</point>
-        <point>-1.4 1.03 0</point>
+        <point>0.16 0.13 0</point>
       </points>
       <wavefield>
         <topic>/vrx/wavefield/parameters</topic>
       </wavefield>
     </plugin>
-    <!-- Right hull -->
     <plugin filename="libSurface.so" name="vrx::Surface">
-      <link_name>base_link</link_name>
+      <link_name>FR</link_name>
       <hull_length>4.9</hull_length>
       <hull_radius>0.213</hull_radius>
       <fluid_level>0</fluid_level>
       <points>
-        <point>0.6 -1.03 0</point>
-        <point>-1.4 -1.03 0</point>
+        <point>0.16 -0.13 0</point>
+      </points>
+      <wavefield>
+        <topic>/vrx/wavefield/parameters</topic>
+      </wavefield>
+    </plugin>
+    <plugin filename="libSurface.so" name="vrx::Surface">
+      <link_name>BL</link_name>
+      <hull_length>4.9</hull_length>
+      <hull_radius>0.213</hull_radius>
+      <fluid_level>0</fluid_level>
+      <points>
+        <point>-0.09 0.13 0</point>
+      </points>
+      <wavefield>
+        <topic>/vrx/wavefield/parameters</topic>
+      </wavefield>
+    </plugin>
+    <plugin filename="libSurface.so" name="vrx::Surface">
+      <link_name>BR</link_name>
+      <hull_length>4.9</hull_length>
+      <hull_radius>0.213</hull_radius>
+      <fluid_level>0</fluid_level>
+      <points>
+        <point>-0.09 -0.13 0</point>
       </points>
       <wavefield>
         <topic>/vrx/wavefield/parameters</topic>
@@ -147,11 +167,9 @@
     </plugin>
     <plugin filename="libSimpleHydrodynamics.so" name="vrx::SimpleHydrodynamics">
       <link_name>base_link</link_name>
-      <!-- Added mass -->
       <xDotU>0.0</xDotU>
       <yDotV>0.0</yDotV>
       <nDotR>0.0</nDotR>
-      <!-- Linear and quadratic drag -->
       <xU>100.0</xU>
       <xUU>150.0</xUU>
       <yV>100.0</yV>
@@ -165,23 +183,9 @@
       <nRR>800.0</nRR>
     </plugin>
     <plugin filename="libAerodynamics.so" name="vrx::Aerodynamics">
-      <air_density>1000</air_density>
+      <air_density>1.225</air_density>
       <drone_num_vertices>6</drone_num_vertices>
       <link_name>base_link</link_name>
-      <xDotU>0.0</xDotU>
-      <yDotV>0.0</yDotV>
-      <nDotR>0.0</nDotR>
-      <xU>100.0</xU>
-      <xUU>150.0</xUU>
-      <yV>100.0</yV>
-      <yVV>100.0</yVV>
-      <zW>500.0</zW>
-      <kP>300.0</kP>
-      <kPP>600.0</kPP>
-      <mQ>900.0</mQ>
-      <mQQ>900.0</mQQ>
-      <nR>800.0</nR>
-      <nRR>800.0</nRR>
       <geometry>
         <cylinder>
           <radius>0.325</radius>
