@@ -478,10 +478,10 @@
       <fluid_density>1000</fluid_density>
       <propeller_diameter>0.2</propeller_diameter>
       <velocity_control>true</velocity_control>
-      <!-- max total thrust / 2 -->
+      <!-- max total throttle / 2 -->
       <max_thrust_cmd>2353.53383667818</max_thrust_cmd>
       <namespace>wamv</namespace>
-      <topic>thrusters/left/thrust</topic>
+      <topic>rotors/left/throttle</topic>
       <!-- Not used by Gazebo but used to run the bridge easily -->
       <name>left</name>
     </plugin>
@@ -516,7 +516,7 @@
       <!-- max total thrust / 2 -->
       <max_thrust_cmd>2353.53383667818</max_thrust_cmd>
       <namespace>wamv</namespace>
-      <topic>thrusters/right/thrust</topic>
+      <topic>rotors/right/throttle</topic>
       <!-- Not used by Gazebo but used to run the bridge easily -->
       <name>right</name>
     </plugin>
@@ -551,7 +551,7 @@
       <!-- max total thrust / 2 -->
       <max_thrust_cmd>2353.53383667818</max_thrust_cmd>
       <namespace>wamv</namespace>
-      <topic>thrusters/middle/thrust</topic>
+      <topic>rotors/middle/throttle</topic>
       <!-- Not used by Gazebo but used to run the bridge easily -->
       <name>middle</name>
     </plugin>
@@ -612,25 +612,13 @@
       <nR>800.0</nR>
       <nRR>800.0</nRR>
     </plugin>
-    <!--plugin
-        filename="libAerodynamics.so"
-        name="vrx::Aerodynamics">
-        <link_name>${namespace}/base_link</link_name>
-        <xDotU>0.0</xDotU>
-        <yDotV>0.0</yDotV>
-        <nDotR>0.0</nDotR>
-        <xU>100.0</xU>
-        <xUU>150.0</xUU>
-        <yV>100.0</yV>
-        <yVV>100.0</yVV>
-        <zW>500.0</zW>
-        <kP>300.0</kP>
-        <kPP>600.0</kPP>
-        <mQ>900.0</mQ>
-        <mQQ>900.0</mQQ>
-        <nR>800.0</nR>
-        <nRR>800.0</nRR>
-      </plugin-->
+    <plugin filename="libAerodynamics.so" name="vrx::Aerodynamics">
+      <link_name>wamv/base_link</link_name>
+      <inertial>
+        <mass value="20"/>
+      <inertia ixx="1.51633333333333" ixy="0" ixz="0" iyy="1.93633333333333" iyz="0" izz="2.71633333333333"/>
+    </inertial>
+    </plugin>
   </gazebo>
   <!-- === [Un]lock the robot to the world === -->
   <gazebo>
