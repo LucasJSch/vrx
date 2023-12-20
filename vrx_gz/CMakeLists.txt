@@ -51,6 +51,23 @@ install(
   TARGETS Waves
   DESTINATION lib)
 
+# CustomMulticopterVelocityControl
+add_library(CustomMulticopterVelocityControl SHARED
+  src/CustomMulticopterVelocityControl.cc
+  src/Common.cc
+  src/LeeVelocityController.cc
+)
+target_link_libraries(CustomMulticopterVelocityControl PUBLIC
+  gz-common${GZ_COMMON_VER}::gz-common${GZ_COMMON_VER}
+  gz-transport${GZ_TRANSPORT_VER}::gz-transport${GZ_TRANSPORT_VER}
+  gz-math${GZ_MATH_VER}
+  gz-sim${GZ_SIM_VER}::core
+  Eigen3::Eigen
+)
+install(
+  TARGETS CustomMulticopterVelocityControl
+  DESTINATION lib)
+
 # Aerodynamics
 add_library(Aerodynamics SHARED
   src/Aerodynamics.cc

@@ -359,6 +359,34 @@
       <direction>-0.5 0.1 -0.9</direction>
     </light>
 
+    <model name="multicopter_floor">
+      <pose>-530 150 20 0 0 0</pose>
+      <static>true</static>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>10 10</size>
+            </plane>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <plane>
+              <normal>0 0 1</normal>
+              <size>10 10</size>
+            </plane>
+          </geometry>
+          <material>
+            <ambient>0.8 0.8 0.8 1</ambient>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <specular>0.8 0.8 0.8 1</specular>
+          </material>
+        </visual>
+      </link>
+    </model>
+
     <include>
       <pose> 0 0 0.2 0 0 0 </pose>
       <uri>https://fuel.gazebosim.org/1.0/openrobotics/models/sydney_regatta</uri>
@@ -601,7 +629,7 @@
       <uri>
         https://fuel.gazebosim.org/1.0/OpenRobotics/models/X3 UAV/4
       </uri>
-      <pose>-530 150 10 0 0 0</pose>
+      <pose>-530 150 20.5 0 0 0</pose>
       <plugin
         filename="gz-sim-multicopter-motor-model-system"
         name="gz::sim::systems::MulticopterMotorModel">
@@ -682,8 +710,7 @@
         <rotorVelocitySlowdownSim>10</rotorVelocitySlowdownSim>
         <motorType>velocity</motorType>
       </plugin>
-       <plugin filename="gz-sim-multicopter-control-system"
-        name="gz::sim::systems::MulticopterVelocityControl">
+      <plugin filename="libCustomMulticopterVelocityControl.so" name="gz::sim::systems::CustomMulticopterVelocityControl">
       <robotNamespace>X3</robotNamespace>
       <commandSubTopic>gazebo/command/twist</commandSubTopic>
       <motorControlPubTopic>X3/cmd_vel</motorControlPubTopic>
