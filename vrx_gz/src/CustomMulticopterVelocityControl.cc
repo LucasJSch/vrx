@@ -263,11 +263,21 @@ void CustomMulticopterVelocityControl::Configure(const Entity &_entity,
     return;
   }
 
-  sdfClone->Get<std::string>("commandSubTopic",
-      this->commandSubTopic, this->commandSubTopic);
-  this->commandSubTopic = transport::TopicUtils::AsValidTopic(
-      this->commandSubTopic);
-  if (this->commandSubTopic.empty())
+  sdfClone->Get<std::string>("twistCommandSubTopic",
+      this->twistCommandSubTopic, this->twistCommandSubTopic);
+  this->twistCommandSubTopic = transport::TopicUtils::AsValidTopic(
+      this->twistCommandSubTopic);
+  if (this->twistCommandSubTopic.empty())
+  {
+    gzerr << "Invalid command sub-topic." << std::endl;
+    return;
+  }
+
+  sdfClone->Get<std::string>("actuatorsCommandSubTopic",
+      this->actuatorsCommandSubTopic, this->actuatorsCommandSubTopic);
+  this->actuatorsCommandSubTopic = transport::TopicUtils::AsValidTopic(
+      this->actuatorsCommandSubTopic);
+  if (this->actuatorsCommandSubTopic.empty())
   {
     gzerr << "Invalid command sub-topic." << std::endl;
     return;
@@ -284,11 +294,16 @@ void CustomMulticopterVelocityControl::Configure(const Entity &_entity,
   }
 
   // Subscribe to actuator command messages
-  std::string topic{this->robotNamespace + "/" + this->commandSubTopic};
+  std::string twistTopic{this->robotNamespace + "/" + this->twistCommandSubTopic};
+  std::string actuatorsTopic{this->robotNamespace + "/" + this->actuatorsCommandSubTopic};
 
-  this->node.Subscribe(topic, &CustomMulticopterVelocityControl::OnTwist, this);
+  this->node.Subscribe(twistTopic, &CustomMulticopterVelocityControl::OnTwist, this);
   gzmsg << "CustomMulticopterVelocityControl subscribing to Twist messages on ["
-         << topic << "]" << std::endl;
+         << twistTopic << "]" << std::endl;
+
+  this->node.Subscribe(actuatorsTopic, &CustomMulticopterVelocityControl::OnActuators, this);
+  gzmsg << "CustomMulticopterVelocityControl subscribing to Actuators messages on ["
+         << actuatorsTopic << "]" << std::endl;
 
   std::string enableTopic{this->robotNamespace + "/" + this->enableSubTopic};
   this->node.Subscribe(enableTopic, &CustomMulticopterVelocityControl::OnEnable,
@@ -404,8 +419,10 @@ void CustomMulticopterVelocityControl::PreUpdate(
     return;
   }
 
-  this->velocityController->CalculateRotorVelocities(*frameData, cmdVel,
-                                                     this->rotorVelocities);
+  if (!actuatorsMsgSet) {
+    this->velocityController->CalculateRotorVelocities(*frameData, cmdVel,
+                                                      this->rotorVelocities);
+  }
 
   this->PublishRotorVelocities(_ecm, this->rotorVelocities);
 }
@@ -416,6 +433,17 @@ void CustomMulticopterVelocityControl::OnTwist(
 {
   std::lock_guard<std::mutex> lock(this->cmdVelMsgMutex);
   this->cmdVelMsg = _msg;
+  this->actuatorsMsgSet = false;
+}
+
+//////////////////////////////////////////////////
+void CustomMulticopterVelocityControl::OnActuators(
+    const msgs::Actuators &_msg)
+{
+  std::lock_guard<std::mutex> lock(this->cmdVelMsgMutex);
+  this->actuatorsMsgSet = true;
+  this->rotorVelocitiesMsg = _msg;
+  gzerr << "Invalid enable sub-topic." << std::endl;
 }
 
 //////////////////////////////////////////////////
@@ -451,10 +479,18 @@ void CustomMulticopterVelocityControl::PublishRotorVelocities(
       return std::equal(_a.velocity().begin(), _a.velocity().end(),
                         _b.velocity().begin());
     };
+    if (actuatorsMsgSet) {
     auto state = actuatorMsgComp->SetData(this->rotorVelocitiesMsg, compFunc)
                      ? ComponentState::PeriodicChange
                      : ComponentState::NoChange;
     _ecm.SetChanged(this->model.Entity(), components::Actuators::typeId, state);
+    return;
+    } else {
+      auto state = actuatorMsgComp->SetData(this->rotorVelocitiesMsg, compFunc)
+                      ? ComponentState::PeriodicChange
+                      : ComponentState::NoChange;
+      _ecm.SetChanged(this->model.Entity(), components::Actuators::typeId, state);
+    }
   }
   else
   {

@@ -712,7 +712,8 @@
       </plugin>
       <plugin filename="libCustomMulticopterVelocityControl.so" name="gz::sim::systems::CustomMulticopterVelocityControl">
       <robotNamespace>X3</robotNamespace>
-      <commandSubTopic>gazebo/command/twist</commandSubTopic>
+      <twistCommandSubTopic>gazebo/command/twist</twistCommandSubTopic>
+      <actuatorsCommandSubTopic>gazebo/command/actuators</actuatorsCommandSubTopic>
       <motorControlPubTopic>X3/cmd_vel</motorControlPubTopic>
       <enableSubTopic>velocity_controller/enable</enableSubTopic>
       <comLinkName>X3/base_link</comLinkName>

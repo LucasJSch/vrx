@@ -7,3 +7,5 @@ colcon build --merge-install
 ros2 launch vrx_gz competition.launch.py world:=sydney_regatta
 
 gz topic -t "/X3/gazebo/command/twist" -m gz.msgs.Twist -p "linear: {x:0 y: 5 z: 1} angular {z: 0}"
+
+gz topic -t /X3/gazebo/command/actuators -m gz.msgs.Actuators -p 'velocity:[700, 700, 700, 700]'

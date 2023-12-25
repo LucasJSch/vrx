@@ -175,6 +175,8 @@ namespace systems
     /// \param[in] _msg Twist message
     private: void OnTwist(const msgs::Twist &_msg);
 
+    private: void OnActuators(const msgs::Actuators &_msg);
+
     /// \brief Callback for enable messages
     /// \param[in] _msg Callback message. If false, the controller sends a zero
     /// rotor velocity command once and gets disabled. If the vehicle is in the
@@ -209,7 +211,10 @@ namespace systems
     private: std::string robotNamespace;
 
     /// \brief Topic for twist commands.
-    private: std::string commandSubTopic{"cmd_vel"};
+    private: std::string twistCommandSubTopic{"cmd_vel"};
+
+    /// \brief Topic for twist commands.
+    private: std::string actuatorsCommandSubTopic{"cmd_vel"};
 
     /// \brief Topic for enable commands.
     private: std::string enableSubTopic{"enable"};
@@ -251,6 +256,9 @@ namespace systems
 
     /// \brief Whether the controller is active
     private: std::atomic<bool> controllerActive{true};
+
+    /// \brief Whether the controller is active
+    private: bool actuatorsMsgSet{false};
   };
   }
 }
