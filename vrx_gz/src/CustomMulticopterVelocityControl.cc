@@ -269,7 +269,7 @@ void CustomMulticopterVelocityControl::Configure(const Entity &_entity,
       this->twistCommandSubTopic);
   if (this->twistCommandSubTopic.empty())
   {
-    gzerr << "Invalid command sub-topic." << std::endl;
+    gzerr << "Invalid twistCommandSubTopic." << std::endl;
     return;
   }
 
@@ -279,7 +279,7 @@ void CustomMulticopterVelocityControl::Configure(const Entity &_entity,
       this->actuatorsCommandSubTopic);
   if (this->actuatorsCommandSubTopic.empty())
   {
-    gzerr << "Invalid command sub-topic." << std::endl;
+    gzerr << "Invalid actuatorsCommandSubTopic." << std::endl;
     return;
   }
 
@@ -393,22 +393,24 @@ void CustomMulticopterVelocityControl::PreUpdate(
   EigenTwist cmdVel;
   {
     std::lock_guard<std::mutex> lock(this->cmdVelMsgMutex);
-    if (!this->cmdVelMsg.has_value())
+    if (!this->cmdVelMsg.has_value() && !actuatorsMsgSet)
     {
       return;
     }
 
-    // Clip with max linear velocity
-    math::Vector3d linear = msgs::Convert(this->cmdVelMsg->linear());
-    linear.Min(this->maximumLinearVelocity);
-    linear.Max(-this->maximumLinearVelocity);
+    if (this->cmdVelMsg.has_value()) {
+      // Clip with max linear velocity
+      math::Vector3d linear = msgs::Convert(this->cmdVelMsg->linear());
+      linear.Min(this->maximumLinearVelocity);
+      linear.Max(-this->maximumLinearVelocity);
 
-    math::Vector3d angular = msgs::Convert(this->cmdVelMsg->angular());
-    angular.Min(this->maximumAngularVelocity);
-    angular.Max(-this->maximumAngularVelocity);
+      math::Vector3d angular = msgs::Convert(this->cmdVelMsg->angular());
+      angular.Min(this->maximumAngularVelocity);
+      angular.Max(-this->maximumAngularVelocity);
 
-    cmdVel.linear = math::eigen3::convert(linear);
-    cmdVel.angular = math::eigen3::convert(angular);
+      cmdVel.linear = math::eigen3::convert(linear);
+      cmdVel.angular = math::eigen3::convert(angular);
+    }
   }
 
   std::optional<FrameData> frameData =
@@ -442,8 +444,10 @@ void CustomMulticopterVelocityControl::OnActuators(
 {
   std::lock_guard<std::mutex> lock(this->cmdVelMsgMutex);
   this->actuatorsMsgSet = true;
-  this->rotorVelocitiesMsg = _msg;
-  gzerr << "Invalid enable sub-topic." << std::endl;
+  this->rotorVelocities[0] = _msg.velocity(0);
+  this->rotorVelocities[1] = _msg.velocity(1);
+  this->rotorVelocities[2] = _msg.velocity(2);
+  this->rotorVelocities[3] = _msg.velocity(3);
 }
 
 //////////////////////////////////////////////////
@@ -479,18 +483,10 @@ void CustomMulticopterVelocityControl::PublishRotorVelocities(
       return std::equal(_a.velocity().begin(), _a.velocity().end(),
                         _b.velocity().begin());
     };
-    if (actuatorsMsgSet) {
     auto state = actuatorMsgComp->SetData(this->rotorVelocitiesMsg, compFunc)
                      ? ComponentState::PeriodicChange
                      : ComponentState::NoChange;
     _ecm.SetChanged(this->model.Entity(), components::Actuators::typeId, state);
-    return;
-    } else {
-      auto state = actuatorMsgComp->SetData(this->rotorVelocitiesMsg, compFunc)
-                      ? ComponentState::PeriodicChange
-                      : ComponentState::NoChange;
-      _ecm.SetChanged(this->model.Entity(), components::Actuators::typeId, state);
-    }
   }
   else
   {
