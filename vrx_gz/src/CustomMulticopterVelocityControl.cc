@@ -444,10 +444,9 @@ void CustomMulticopterVelocityControl::OnActuators(
 {
   std::lock_guard<std::mutex> lock(this->cmdVelMsgMutex);
   this->actuatorsMsgSet = true;
-  this->rotorVelocities[0] = _msg.velocity(0);
-  this->rotorVelocities[1] = _msg.velocity(1);
-  this->rotorVelocities[2] = _msg.velocity(2);
-  this->rotorVelocities[3] = _msg.velocity(3);
+  for (int i = 0; i < _msg.velocity_size(); i++) {
+    this->rotorVelocities[i] = _msg.velocity(i);
+  }
 }
 
 //////////////////////////////////////////////////
