@@ -83,31 +83,51 @@ bool LeeVelocityController::InitializeParameters()
   return true;
 }
 
+double LeeVelocityController::Gamma(double k_alpha, double sigma, double k_beta)
+{
+  //return -k_alpha * sqrt(abs(sigma)) * sign(sigma) - k_beta * sigma;
+  return 0;
+}
+
 //////////////////////////////////////////////////
 void LeeVelocityController::CalculateRotorVelocities(
-    const FrameData &_frameData, const EigenTwist &_cmdVel,
+    const FrameData &_frameData, const EigenTwist &_cmdVel, const EigenTwist &_cmdAccel, const Eigen::Isometry3d &_desiredPose,
     Eigen::VectorXd &_rotorVelocities) const
 {
-  Eigen::Vector3d acceleration =
-      this->ComputeDesiredAcceleration(_frameData, _cmdVel);
+  double LAMBDA_C = 0.001;
+  double K_BETA = 0.02;
+  double K_MIN = 0.05;
+  double MU = 0.05;
+  double K_R = 0.1;
 
-  Eigen::Vector3d angularAcceleration =
-      this->ComputeDesiredAngularAcc(_frameData, _cmdVel, acceleration);
+  std::vector<double> k_beta(7, K_BETA);
+  std::vector<double> lambda_c(7, LAMBDA_C);
+  std::vector<double> k_min_arr(7, K_MIN);;
+  std::vector<double> k_r_arr(7, K_R);
+  std::vector<double> mu(7, MU);
 
-  // Project thrust onto body z axis.
-  double thrust = -this->vehicleParameters.mass *
-                  acceleration.dot(_frameData.pose.linear().col(2));
+  // Rcontrol
+  /*Lambda, mu, p, r_cluster, v_cluster = self.modelo.modelo(
+      r_asv, r_uav, v_asv, v_uav
+  )
+  // Error en velocidad
+  auto error_c_dot = _frameData.linearVelocityWorld - _cmdVel.linear;
+  // Error en posición
+  auto error_c = _frameData.pose.linear() - _desiredPose.linear();
+  // Superficie de deslizamiento
+  double lambda_c = 0.001;
+  auto superficie = error_c_dot + lambda_c * error_c;
+  // Ganancia adaptativa
+  auto k_alpha = adaptive_gain(t, superficie);
+  auto gamma = Gamma(k_alpha, superficie, k_beta);
+  // Feedback
+  auto F = Lambda.dot(_cmdAccel.linear - gamma + lambda_c * error_c_dot) + mu + p;
+  // Cluster Space -> Robot Space
+  auto G = self.modelo.kinematics.jacobian(r_asv, r_uav).T.dot(F);*/
 
-  Eigen::Vector4d angularAccelerationThrust;
-  angularAccelerationThrust.block<3, 1>(0, 0) = angularAcceleration;
-  angularAccelerationThrust(3) = thrust;
-
-  _rotorVelocities =
-      this->angularAccToRotorVelocities * angularAccelerationThrust;
-
-  _rotorVelocities =
+  /*_rotorVelocities =
       _rotorVelocities.cwiseMax(Eigen::VectorXd::Zero(_rotorVelocities.rows()));
-  _rotorVelocities = _rotorVelocities.cwiseSqrt();
+  _rotorVelocities = _rotorVelocities.cwiseSqrt();*/
 }
 
 //////////////////////////////////////////////////

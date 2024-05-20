@@ -34,6 +34,9 @@ namespace systems
 {
 namespace multicopter_control
 {
+
+  class AdaptiveGain;
+
   /// \brief Data structure containing various parameters for the Lee velocity
   /// controller
   struct LeeVelocityControllerParameters
@@ -66,9 +69,8 @@ namespace multicopter_control
     /// \param[in] _cmdVel Commanded velocity
     /// \param[out] _rotorVelocities Computed rotor velocities.
     public: void CalculateRotorVelocities(
-                 const FrameData &_frameData,
-                 const EigenTwist &_cmdVel,
-                 Eigen::VectorXd &_rotorVelocities) const;
+    const FrameData &_frameData, const EigenTwist &_cmdVel, const EigenTwist &_cmdAccel, const Eigen::Isometry3d &_desiredPose,
+    Eigen::VectorXd &_rotorVelocities) const;
 
     /// \brief Private constructor. Use MakeController to create an instance of
     /// this class
@@ -104,7 +106,59 @@ namespace multicopter_control
     /// \brief Holds the matrix that maps angular acceleration and thrust to
     /// rotor velocities
     private: Eigen::MatrixX4d angularAccToRotorVelocities;
+
+    //private: AdaptiveGain adapative_gain;
+
+    private: double Gamma(double k_alpha, double sigma, double k_beta);
   };
+
+class AdaptiveGain {
+
+  public:
+    std::vector<double> cmin;
+    double cr;
+    double mu;
+    double t;
+    double acc;
+    double u;
+    bool mask;
+
+  AdaptiveGain(double t, double val, double cmin, double cr, double mu)
+  {
+    cmin = cmin;
+    cr = cr;
+    mu = mu;
+    t = t;
+    acc = val;
+    u = 0.0;
+  }
+
+  double operator()(double t_curr, double sigma)
+  {
+    double sign = abs(sigma) > mu ? 1 : 0;
+    double u2 = cr * sign;
+    //mask = acc <= cmin;
+    //u[mask] = cmin[mask];
+    acc += (t_curr - t) * (u + u2) / 2;
+    u = u2;
+    t = t_curr;
+
+    return acc;
+  }
+
+  void reset()
+  {
+    t = 0;
+    acc = 0;
+    u = 0;
+  }
+
+  double value()
+  {
+    return acc;
+  }
+};
+
 }  // namespace multicopter_control
 }  // namespace systems
 }  // namespace sim

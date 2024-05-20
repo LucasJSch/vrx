@@ -422,8 +422,8 @@ void CustomMulticopterVelocityControl::PreUpdate(
   }
 
   if (!actuatorsMsgSet) {
-    this->velocityController->CalculateRotorVelocities(*frameData, cmdVel,
-                                                      this->rotorVelocities);
+    //this->velocityController->CalculateRotorVelocities(*frameData, cmdVel,
+    //                                                  this->rotorVelocities);
   }
 
   this->PublishRotorVelocities(_ecm, this->rotorVelocities);
